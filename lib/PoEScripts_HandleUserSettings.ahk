@@ -5,7 +5,7 @@ PoEScripts_HandleUserSettings(ProjectName, BaseDir, External, FilesToCopy, sourc
 	
 	; check for git files to determine if it's a development version, return a path using the branch name
 	devBranch := PoEScripts_isDevelopmentVersion()
-	If (StrLen(devBranch) {
+	If (StrLen(devBranch)) {
 		Dir := Dir . devBranch
 	}
 	

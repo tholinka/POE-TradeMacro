@@ -123,7 +123,7 @@ PoEScripts_HandleUserSettings(UseExternalProjectName, A_MyDocuments, UseExternal
 global userDirectory := A_MyDocuments . "\" . UseExternalProjectName . PoEScripts_isDevelopmentVersion()
 
 ; Create config file if neccessary and read it
-IfNotExist, %A_ScriptDir%\config_trade.ini
+IfNotExist, %userDirectory%\config_trade.ini
 {
 	IfNotExist, %A_ScriptDir%\resources\config\default_config_trade.ini
 	{
@@ -163,9 +163,14 @@ CreateTradeSettingsUI()
 TradeFunc_StopSplashScreen()
 ; ----------------------------------------------------------- Functions ----------------------------------------------------------------
 
-ReadTradeConfig(TradeConfigPath="config_trade.ini")
+ReadTradeConfig(TradeConfigDir = "", TradeConfigFile = "config_trade.ini")
 {
 	Global
+	If (StrLen(TradeConfigDir) < 1) {
+		TradeConfigDir := userDirectory
+	}
+	TradeConfigPath := StrLen(TradeConfigDir) > 0 ? TradeConfigDir . "\" . TradeConfigFile : TradeConfigFile
+	
 	IfExist, %TradeConfigPath%
 	{
         ; General 		
@@ -300,9 +305,13 @@ TradeFunc_AssignAllHotkeys() {
 	}	
 }
 
-WriteTradeConfig(TradeConfigPath="config_trade.ini")
-{  
+WriteTradeConfig(TradeConfigDir = "", TradeConfigFile = "config_trade.ini")
+{
 	Global
+	If (StrLen(TradeConfigDir) < 1) {
+		TradeConfigDir := userDirectory
+	}
+	TradeConfigPath := StrLen(TradeConfigDir) > 0 ? TradeConfigDir . "\" . TradeConfigFile : TradeConfigFile
 	
 	ValidBrowserPath := TradeFunc_CheckBrowserPath(BrowserPath, true)
 	
@@ -449,14 +458,14 @@ WriteTradeConfig(TradeConfigPath="config_trade.ini")
 
 CopyDefaultTradeConfig()
 {
-	FileCopy, %A_ScriptDir%\resources\config\default_config_trade.ini, %A_ScriptDir%
-	FileMove, %A_ScriptDir%\default_config_trade.ini, %A_ScriptDir%\config_trade.ini
-	FileDelete, %A_ScriptDir%\default_config_trade.ini	
+	FileCopy, %A_ScriptDir%\resources\config\default_config_trade.ini, %userDirectory%
+	FileMove, %userDirectory%\default_config_trade.ini, %userDirectory%\config_trade.ini
+	FileDelete, %userDirectory%\default_config_trade.ini	
 }
 
 RemoveTradeConfig()
 {
-	FileDelete, %A_ScriptDir%\config_trade.ini
+	FileDelete, %userDirectory%\config_trade.ini
 }
 
 CreateDefaultTradeConfig()

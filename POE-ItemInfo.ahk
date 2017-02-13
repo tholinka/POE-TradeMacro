@@ -556,7 +556,7 @@ class AffixLines_ {
 }
 AffixLines := new AffixLines_()
 
-IfNotExist, %A_ScriptDir%\config.ini
+IfNotExist, %userDirectory%\config.ini
 {
 	CopyDefaultConfig()
 }
@@ -644,9 +644,9 @@ OpenCreateDataTextFile(Filename)
 
 }
 
-OpenMainDirFile(Filename)
+OpenUserDirFile(Filename)
 {
-	Filepath := A_ScriptDir . "\" . Filename
+	Filepath := userDirectory . "\" . Filename
 	IfExist, % Filepath
 	{
 		Run, % Filepath
@@ -663,7 +663,7 @@ OpenMainDirFile(Filename)
 OpenUserSettingsFolder(ProjectName, Dir = "")
 {	
     If (!StrLen(Dir)) {
-        Dir := A_MyDocuments . "\" . ProjectName
+        Dir := userDirectory . "\" . ProjectName
     }
 
     If (!InStr(FileExist(Dir), "D")) {
@@ -8396,9 +8396,14 @@ IniWrite(Val, ConfigPath, Section_, Key)
 	IniWrite, %Val%, %ConfigPath%, %Section_%, %Key%
 }
 
-ReadConfig(ConfigPath="config.ini")
+ReadConfig(ConfigDir = "", ConfigFile = "config.ini")
 {
 	Global
+	If (StrLen(ConfigDir) < 1) {
+		ConfigDir := userDirectory
+	}
+	ConfigPath := StrLen(ConfigDir) > 0 ? ConfigDir . "\" . ConfigFile : ConfigFile
+
 	IfExist, %ConfigPath%
 	{
 		; General
@@ -8448,9 +8453,14 @@ ReadConfig(ConfigPath="config.ini")
 	}
 }
 
-WriteConfig(ConfigPath="config.ini")
+WriteConfig(ConfigDir = "", ConfigFile = "config.ini")
 {
 	Global
+	If (StrLen(ConfigDir) < 1) {
+		ConfigDir := userDirectory
+	}
+	ConfigPath := StrLen(ConfigDir) > 0 ? ConfigDir . "\" . ConfigFile : ConfigFile
+
 	Opts.ScanUI()
 
 	; General
@@ -8508,12 +8518,12 @@ WriteConfig(ConfigPath="config.ini")
 
 CopyDefaultConfig()
 {
-	FileCopy, %A_ScriptDir%\resources\config\default_config.ini, %A_ScriptDir%\config.ini
+	FileCopy, %A_ScriptDir%\resources\config\default_config.ini, %userDirectory%\config.ini
 }
 
 RemoveConfig()
 {
-	FileDelete, %A_ScriptDir%\config.ini
+	FileDelete, %userDirectory%\config.ini
 }
 
 GetContributors(AuthorsPerLine=0)
@@ -8774,7 +8784,7 @@ EditOpenUserSettings:
     return
 
 EditAdditionalMacros:
-	OpenMainDirFile("AdditionalMacros.txt")
+	OpenUserDirFile("AdditionalMacros.txt")
 	return
 
 EditCurrencyRates:
@@ -8902,4 +8912,5 @@ F8::
 ; ############ (user) macros #############
 #IfWinActive Path of Exile ahk_class POEWindowClass ahk_group PoEexe
 
-#Include %A_ScriptDir%\AdditionalMacros.txt
+;#Include,  %userDirectory%\AdditionalMacros.txt
+
