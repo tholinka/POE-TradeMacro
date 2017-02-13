@@ -1,22 +1,19 @@
 ﻿#Include, CalcChecksum.ahk
 
-PoEScripts_HandleUserSettings(ProjectName, External, FilesToCopy, sourceDir, Dir = "") {
-	If (!StrLen(Dir)) {
-		Dir := A_MyDocuments . "\" . ProjectName
+PoEScripts_HandleUserSettings(ProjectName, BaseDir, External, FilesToCopy, sourceDir) {
+	Dir := BaseDir . "\" . ProjectName
+	
+	; check for git files to determine if it's a development version, return a path using the branch name
+	devBranch := PoEScripts_isDevelopmentVersion()
+	If (StrLen(devBranch) {
+		Dir := Dir . devBranch
 	}
+	
 	PoEScripts_CreateDirIfNotExist(Dir)
-
-	; External is set if the user settings folder is handled by another script
-	If (External) {
-		; copy files after checking if it's neccessary (files do not exist, files were changed in latest update)
-		; copy .ini files and AdditionalMacros.txt to A_MyDocuments/ProjectName
-		PoEScripts_CopyFiles(FilesToCopy, sourceDir, Dir)
-	}
-	Else {
-		; copy files after checking if it's neccessary (files do not exist, files were changed in latest update)
-		; this handles the external scripts files
-		PoEScripts_CopyFiles(FilesToCopy, sourceDir, Dir)
-	}
+	
+	; copy files after checking if it's neccessary (files do not exist, files were changed in latest update)
+	; copy .ini files and AdditionalMacros.txt to A_MyDocuments/ProjectName
+	PoEScripts_CopyFiles(FilesToCopy, sourceDir, Dir)
 }
 
 PoEScripts_CopyFiles(Files, sourceDir, Dir) {
@@ -128,4 +125,27 @@ PoEScripts_CompareFileHashes(name, sourceHash, hashes_locked) {
 		Return 1
 	}
 	Return 0
+}
+
+PoEScripts_isDevelopmentVersion() {
+	If (FileExist(A_ScriptDir "\.git")) {
+		If (FileExist(A_ScriptDir "\.git\HEAD")) {
+			FileRead, head, %A_ScriptDir%\.git\HEAD
+			branch := ""
+			Loop, Parse, head, `n, `r
+			{
+				RegExMatch(A_LoopField, "ref:.*\/(.*)", refs)
+				If (StrLen(refs1)) {
+					branch := "\dev_" . refs1
+				}
+			}
+			Return branch
+		}
+		Else {			
+			Return ""
+		} 
+	}
+	Else {
+		Return ""
+	}
 }
