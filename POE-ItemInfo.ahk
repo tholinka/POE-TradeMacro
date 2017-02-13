@@ -184,19 +184,12 @@ Globals.Set("UpdateNoteFileList", [[A_ScriptDir "\resources\updates.txt","ItemIn
 ; Only set it in an external script when including ItemInfo (for example PoE-TradeMacro).
 If (UseExternalProjectName) {
 	Globals.Set("ProjectName", UseExternalProjectName)
-	If (not FilesToCopyToUserFolder.Length()) {
-	    global FilesToCopyToUserFolder := [A_ScriptDir . "\resources\config\default_config.ini", A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt"]
-	}
-	Else {
-	    FilesToCopyToUserFolder.push(A_ScriptDir . "\resources\config\default_config.ini")
-	    FilesToCopyToUserFolder.push(A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt")
-	}
 }
 Else {
     Globals.Set("ProjectName", "PoE-ItemInfo")
-    global FilesToCopyToUserFolder := [A_ScriptDir . "\resources\config\default_config.ini", A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt"]    
+    global FilesToCopyToUserFolder := [A_ScriptDir . "\resources\config\default_config.ini", A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt"]   
+    PoEScripts_HanldeUserSettings(Globals.Get("ProjectName"), UseExternalProjectName, FilesToCopyToUserFolder)
 }
-PoEScripts_UserSettings(Globals.Get("ProjectName"), UseExternalProjectName, FilesToCopyToUserFolder)
 
 global SuspendPOEItemScript = 0
 

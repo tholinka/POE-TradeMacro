@@ -1,5 +1,5 @@
 ﻿#Include, CalcChecksum.ahk
-#Include, DebugPrintArray.ahk
+#Include, %A_ScriptDir%\lib\DebugPrintArray.ahk
 
 PoEScripts_HanldeUserSettings(ProjectName, External, FilesToCopy, Dir = "") {
 	If (!StrLen(Dir)) {
