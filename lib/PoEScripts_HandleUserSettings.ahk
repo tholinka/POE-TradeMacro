@@ -1,7 +1,6 @@
 ﻿#Include, CalcChecksum.ahk
-#Include, %A_ScriptDir%\lib\DebugPrintArray.ahk
 
-PoEScripts_HanldeUserSettings(ProjectName, External, FilesToCopy, Dir = "") {
+PoEScripts_HandleUserSettings(ProjectName, External, FilesToCopy, sourceDir, Dir = "") {
 	If (!StrLen(Dir)) {
 		Dir := A_MyDocuments . "\" . ProjectName
 	}
@@ -11,16 +10,16 @@ PoEScripts_HanldeUserSettings(ProjectName, External, FilesToCopy, Dir = "") {
 	If (External) {
 		; copy files after checking if it's neccessary (files do not exist, files were changed in latest update)
 		; copy .ini files and AdditionalMacros.txt to A_MyDocuments/ProjectName
-		PoEScripts_CopyFiles(FilesToCopy, Dir)
+		PoEScripts_CopyFiles(FilesToCopy, sourceDir, Dir)
 	}
 	Else {
 		; copy files after checking if it's neccessary (files do not exist, files were changed in latest update)
 		; this handles the external scripts files
-		PoEScripts_CopyFiles(FilesToCopy, Dir)
+		PoEScripts_CopyFiles(FilesToCopy, sourceDir, Dir)
 	}
 }
 
-PoEScripts_CopyFiles(Files, Dir) {
+PoEScripts_CopyFiles(Files, sourceDir, Dir) {
 	tempObj 		:= PoEScripts_ParseFileHashes(Dir)
 	hashes 		:= tempObj.dynamic
 	hashes_locked 	:= tempObj.static
@@ -31,6 +30,7 @@ PoEScripts_CopyFiles(Files, Dir) {
 	FileCreateDir, %Dir%\temp
 	
 	For key, file in Files {
+		file := sourceDir . file
 		If (FileExist(file)) {
 			; remove "default_" prefix in file-names and copy them to temp folder
 			SplitPath, file, f_name, f_dir, f_ext, f_name_no_ext, f_drive
@@ -70,13 +70,13 @@ PoEScripts_CopyFiles(Files, Dir) {
 		}
 	}
 	
-	; give the user some notice on what files were overwritten and backed up
+	; give the user some notification on what files were overwritten and backed up
 	If (overwrittenFiles.Length()) {
 		fileList := ""
 		Loop, % overwrittenFiles.Length() {
 			fileList .= "- " . overwrittenFiles[A_Index] . "`n"
 		}
-		MsgBox % "Following user files were changed in last update and were overwritten (old files were backed up): `n`n" . fileList
+		;MsgBox % "Following user files were changed in the last update and were overwritten (old files were backed up): `n`n" . fileList
 	}
 	
 	FileRemoveDir, %Dir%\temp, 1

@@ -118,8 +118,8 @@ TradeGlobals.Set("SettingsUITitle", "PoE (Trade) Item Info Settings")
 
 ; set "UseExternalProjectName" to skip setting the project-name to "PoE-ItemInfo"
 global UseExternalProjectName := "PoE-TradeMacro"
-global FilesToCopyToUserFolder := [A_ScriptDir . "\resources\config\default_config_trade.ini", A_ScriptDir . "\resources\config\default_config.ini", A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt"]
-PoEScripts_HanldeUserSettings(UseExternalProjectName, UseExternalProjectName, FilesToCopyToUserFolder)
+global FilesToCopyToUserFolder := ["\resources\config\default_config_trade.ini", "\resources\config\default_config.ini", "\resources\ahk\default_AdditionalMacros.txt"]
+PoEScripts_HandleUserSettings(UseExternalProjectName, UseExternalProjectName, FilesToCopyToUserFolder, A_ScriptDir)
 
 ; Create config file if neccessary and read it
 IfNotExist, %A_ScriptDir%\config_trade.ini

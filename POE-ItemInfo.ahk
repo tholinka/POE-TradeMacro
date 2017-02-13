@@ -187,8 +187,8 @@ If (UseExternalProjectName) {
 }
 Else {
     Globals.Set("ProjectName", "PoE-ItemInfo")
-    global FilesToCopyToUserFolder := [A_ScriptDir . "\resources\config\default_config.ini", A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt"]   
-    PoEScripts_HanldeUserSettings(Globals.Get("ProjectName"), UseExternalProjectName, FilesToCopyToUserFolder)
+    global FilesToCopyToUserFolder := ["\resources\config\default_config.ini", "\resources\ahk\default_AdditionalMacros.txt"]   
+    PoEScripts_HandleUserSettings(Globals.Get("ProjectName"), UseExternalProjectName, FilesToCopyToUserFolder, A_ScriptDir)
 }
 
 global SuspendPOEItemScript = 0
