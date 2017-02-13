@@ -183,14 +183,20 @@ Globals.Set("UpdateNoteFileList", [[A_ScriptDir "\resources\updates.txt","ItemIn
 ; Don't set variable "UseExternalProjectName" in this script.
 ; Only set it in an external script when including ItemInfo (for example PoE-TradeMacro).
 If (UseExternalProjectName) {
-    Globals.Set("ProjectName", UseExternalProjectName)
+	Globals.Set("ProjectName", UseExternalProjectName)
+	If (not FilesToCopyToUserFolder.Length()) {
+	    global FilesToCopyToUserFolder := [A_ScriptDir . "\resources\config\default_config.ini", A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt"]
+	}
+	Else {
+	    FilesToCopyToUserFolder.push(A_ScriptDir . "\resources\config\default_config.ini")
+	    FilesToCopyToUserFolder.push(A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt")
+	}
 }
 Else {
-    Globals.Set("ProjectName", "PoE-ItemInfo")    
+    Globals.Set("ProjectName", "PoE-ItemInfo")
+    global FilesToCopyToUserFolder := [A_ScriptDir . "\resources\config\default_config.ini", A_ScriptDir . "\resources\ahk\default_AdditionalMacros.txt"]    
 }
-;FilesToCopyToUserFolder := [A_ScriptDir . "\resources\default_config.ini", A_ScriptDir . "\data\AdditionalMacros.txt"]
-;PoEScripts_UserSettings(Globals.Get("ProjectName"), UseExternalProjectName, FilesToCopyToUserFolder)
-
+PoEScripts_UserSettings(Globals.Get("ProjectName"), UseExternalProjectName, FilesToCopyToUserFolder)
 
 global SuspendPOEItemScript = 0
 

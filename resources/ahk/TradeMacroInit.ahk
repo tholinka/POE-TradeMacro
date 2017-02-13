@@ -107,15 +107,6 @@ class TradeUserOptions {
 }
 TradeOpts := new TradeUserOptions()
 
-IfNotExist, %A_ScriptDir%\config_trade.ini
-{
-	IfNotExist, %A_ScriptDir%\resources\config\default_config_trade.ini
-	{
-		CreateDefaultTradeConfig()
-	}
-	CopyDefaultTradeConfig()
-}
-
 ; Check If Temp-Leagues are active and set defaultLeague accordingly
 TradeGlobals.Set("TempLeagueIsRunning", TradeFunc_CheckIfTempLeagueIsRunning())
 TradeGlobals.Set("DefaultLeague", (tempLeagueIsRunning > 0) ? "tmpstandard" : "standard")
@@ -124,11 +115,23 @@ TradeGlobals.Set("GithubRepo", "POE-TradeMacro")
 TradeGlobals.Set("ReleaseVersion", TradeReleaseVersion)
 TradeGlobals.Set("SettingsScriptList", ["TradeMacro", "ItemInfo"])
 TradeGlobals.Set("SettingsUITitle", "PoE (Trade) Item Info Settings")
-; set this variable to skip setting the project-name to "PoE-ItemInfo"
-UseExternalProjectName := "PoE-TradeMacro"
 
+; set "UseExternalProjectName" to skip setting the project-name to "PoE-ItemInfo"
+global UseExternalProjectName := "PoE-TradeMacro"
+global FilesToCopyToUserFolder := [A_ScriptDir . "\resources\config\default_config_trade.ini"]
+
+; Create config file if neccessary and read it
+IfNotExist, %A_ScriptDir%\config_trade.ini
+{
+	IfNotExist, %A_ScriptDir%\resources\config\default_config_trade.ini
+	{
+		CreateDefaultTradeConfig()
+	}
+	CopyDefaultTradeConfig()
+}
 ReadTradeConfig()
 Sleep, 100
+
 ; set this variable to skip the update check in "PoE-ItemInfo.ahk"
 SkipItemInfoUpdateCall := 1
 TradeFunc_ScriptUpdate()
