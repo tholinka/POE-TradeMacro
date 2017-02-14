@@ -178,19 +178,26 @@ Globals.Set("GithubRepo", "POE-ItemInfo")
 Globals.Set("GithubUser", "aRTy42")
 Globals.Set("ScriptList", [A_ScriptDir "\POE-ItemInfo"])
 Globals.Set("UpdateNoteFileList", [[A_ScriptDir "\resources\updates.txt","ItemInfo"]])
+argumentProjectName   = %1%
+argumentUserDirectory = %2%
+Globals.Set("ProjectName", argumentProjectName)
+Globals.Set("ProjectName", argumentUserDirectory)
+global userDirectory := argumentUserDirectory
 
-; Set ProjectName to create user settings folder in A_MyDocuments.
+; Set ProjectName to create user settings folder in A_AppData.
 ; Don't set variable "UseExternalProjectName" in this script.
 ; Only set it in an external script when including ItemInfo (for example PoE-TradeMacro).
+/*
 If (UseExternalProjectName) {
 	Globals.Set("ProjectName", UseExternalProjectName)
 }
 Else {
     Globals.Set("ProjectName", "PoE-ItemInfo")
     global FilesToCopyToUserFolder := ["\resources\config\default_config.ini", "\resources\ahk\default_AdditionalMacros.txt"]   
-    PoEScripts_HandleUserSettings(Globals.Get("ProjectName"), A_MyDocuments, UseExternalProjectName, FilesToCopyToUserFolder, A_ScriptDir)
-    global userDirectory := A_MyDocuments . "\" . Globals.Get("ProjectName") . PoEScripts_isDevelopmentVersion()
+    PoEScripts_HandleUserSettings(Globals.Get("ProjectName"), A_AppData, UseExternalProjectName, FilesToCopyToUserFolder, A_ScriptDir)
+    global userDirectory := A_AppData . "\" . Globals.Get("ProjectName") . PoEScripts_isDevelopmentVersion()
 }
+*/
 
 global SuspendPOEItemScript = 0
 
@@ -663,7 +670,7 @@ OpenUserDirFile(Filename)
 OpenUserSettingsFolder(ProjectName, Dir = "")
 {	
     If (!StrLen(Dir)) {
-        Dir := userDirectory . "\" . ProjectName
+        Dir := userDirectory
     }
 
     If (!InStr(FileExist(Dir), "D")) {
@@ -8910,7 +8917,5 @@ F8::
 */
 
 ; ############ (user) macros #############
-#IfWinActive Path of Exile ahk_class POEWindowClass ahk_group PoEexe
-
-;#Include,  %userDirectory%\AdditionalMacros.txt
+; macros are being appended here by merge script
 

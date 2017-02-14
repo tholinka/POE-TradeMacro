@@ -115,12 +115,19 @@ TradeGlobals.Set("GithubRepo", "POE-TradeMacro")
 TradeGlobals.Set("ReleaseVersion", TradeReleaseVersion)
 TradeGlobals.Set("SettingsScriptList", ["TradeMacro", "ItemInfo"])
 TradeGlobals.Set("SettingsUITitle", "PoE (Trade) Item Info Settings")
+argumentProjectName   = %1%
+argumentUserDirectory = %2%
+TradeGlobals.Set("ProjectName", argumentProjectName)
+TradeGlobals.Set("ProjectName", argumentUserDirectory)
+global userDirectory := argumentUserDirectory
 
+/*
 ; set "UseExternalProjectName" to skip setting the project-name to "PoE-ItemInfo"
 global UseExternalProjectName := "PoE-TradeMacro"
 global FilesToCopyToUserFolder := ["\resources\config\default_config_trade.ini", "\resources\config\default_config.ini", "\resources\ahk\default_AdditionalMacros.txt"]
-PoEScripts_HandleUserSettings(UseExternalProjectName, A_MyDocuments, UseExternalProjectName, FilesToCopyToUserFolder, A_ScriptDir)
-global userDirectory := A_MyDocuments . "\" . UseExternalProjectName . PoEScripts_isDevelopmentVersion()
+PoEScripts_HandleUserSettings(UseExternalProjectName, A_AppData, UseExternalProjectName, FilesToCopyToUserFolder, A_ScriptDir)
+global userDirectory := A_AppData . "\" . UseExternalProjectName . PoEScripts_isDevelopmentVersion()
+*/
 
 ; Create config file if neccessary and read it
 IfNotExist, %userDirectory%\config_trade.ini
