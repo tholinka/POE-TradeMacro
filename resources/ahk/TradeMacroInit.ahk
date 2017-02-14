@@ -117,17 +117,10 @@ TradeGlobals.Set("SettingsScriptList", ["TradeMacro", "ItemInfo"])
 TradeGlobals.Set("SettingsUITitle", "PoE (Trade) Item Info Settings")
 argumentProjectName   = %1%
 argumentUserDirectory = %2%
+argumentIsDevVersion  = %3%
 TradeGlobals.Set("ProjectName", argumentProjectName)
-TradeGlobals.Set("ProjectName", argumentUserDirectory)
 global userDirectory := argumentUserDirectory
-
-/*
-; set "UseExternalProjectName" to skip setting the project-name to "PoE-ItemInfo"
-global UseExternalProjectName := "PoE-TradeMacro"
-global FilesToCopyToUserFolder := ["\resources\config\default_config_trade.ini", "\resources\config\default_config.ini", "\resources\ahk\default_AdditionalMacros.txt"]
-PoEScripts_HandleUserSettings(UseExternalProjectName, A_AppData, UseExternalProjectName, FilesToCopyToUserFolder, A_ScriptDir)
-global userDirectory := A_AppData . "\" . UseExternalProjectName . PoEScripts_isDevelopmentVersion()
-*/
+global isDevVersion  := argumentIsDevVersion
 
 ; Create config file if neccessary and read it
 IfNotExist, %userDirectory%\config_trade.ini
@@ -659,7 +652,7 @@ TradeFunc_ScriptUpdate() {
 	ReleaseVersion := TradeGlobals.Get("ReleaseVersion")
 	ShowUpdateNotification := TradeOpts.ShowUpdateNotifications
 	SplashScreenTitle := "PoE-TradeMacro"
-	PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScreenTitle)
+	PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle)
 }
 
 ;----------------------- Trade Settings UI (added onto ItemInfos Settings UI) ---------------------------------------

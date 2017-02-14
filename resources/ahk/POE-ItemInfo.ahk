@@ -180,24 +180,11 @@ Globals.Set("ScriptList", [A_ScriptDir "\POE-ItemInfo"])
 Globals.Set("UpdateNoteFileList", [[A_ScriptDir "\resources\updates.txt","ItemInfo"]])
 argumentProjectName   = %1%
 argumentUserDirectory = %2%
+argumentIsDevVersion  = %3%
 Globals.Set("ProjectName", argumentProjectName)
-Globals.Set("ProjectName", argumentUserDirectory)
-global userDirectory := argumentUserDirectory
-
-; Set ProjectName to create user settings folder in A_AppData.
-; Don't set variable "UseExternalProjectName" in this script.
-; Only set it in an external script when including ItemInfo (for example PoE-TradeMacro).
-/*
-If (UseExternalProjectName) {
-	Globals.Set("ProjectName", UseExternalProjectName)
-}
-Else {
-    Globals.Set("ProjectName", "PoE-ItemInfo")
-    global FilesToCopyToUserFolder := ["\resources\config\default_config.ini", "\resources\ahk\default_AdditionalMacros.txt"]   
-    PoEScripts_HandleUserSettings(Globals.Get("ProjectName"), A_AppData, UseExternalProjectName, FilesToCopyToUserFolder, A_ScriptDir)
-    global userDirectory := A_AppData . "\" . Globals.Get("ProjectName") . PoEScripts_isDevelopmentVersion()
-}
-*/
+; make sure not to overwrite these variables if set from another script
+global userDirectory := userDirectory ? userDirectory : argumentUserDirectory
+global isDevVersion  := isDevVersion  ? isDevVersion  : argumentIsDevVersion
 
 global SuspendPOEItemScript = 0
 
@@ -351,7 +338,7 @@ If (!SkipItemInfoUpdateCall) {
 	user := Globals.Get("GithubUser")
 	ReleaseVersion := Globals.Get("ReleaseVersion")
 	ShowUpdateNotification := 1
-	PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification)
+	PoEScripts_Update(user, repo, ReleaseVersion, userDirectory, isDevVersion, ShowUpdateNotification)
 }
 
 class Fonts {

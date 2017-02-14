@@ -21,13 +21,8 @@ RunAsAdmin()
 projectName := "PoE-ItemInfo"
 FilesToCopyToUserFolder := ["\resources\config\default_config.ini", "\resources\ahk\default_AdditionalMacros.txt"]   
 PoEScripts_HandleUserSettings(projectName, A_MyDocuments, "", FilesToCopyToUserFolder, A_ScriptDir)
-userDirectory := A_MyDocuments . "\" . projectName . PoEScripts_isDevelopmentVersion()
-
-/*	 
-	set some global project variables and pass them later to ItemInfo
-*/
-settings := "projectName = " . projectName . "`n"
-settings .= "userDirectory = " . userDirectory . "`n"
+isDevelopmentVersion := PoEScripts_isDevelopmentVersion()
+userDirectory := A_MyDocuments . "\" . projectName . isDevelopmentVersion
 
 /*
 	merge all scripts into `_ItemInfoMain.ahk` and execute it.
@@ -46,7 +41,7 @@ FileAppend, %test%		, %A_ScriptDir%\_ItemInfoMain.ahk
 FileAppend, %addMacros%	, %A_ScriptDir%\_ItemInfoMain.ahk
 
 ; pass some parameters to ItemInfo
-Run %A_AhkPath% %A_ScriptDir%\_ItemInfoMain.ahk %projectName% %userDirectory%
+Run %A_AhkPath% %A_ScriptDir%\_ItemInfoMain.ahk %projectName% %userDirectory% %isDevelopmentVersion%
 
 ExitApp 
 

@@ -22,13 +22,8 @@ StartSplashScreen()
 projectName := "PoE-TradeMacro"
 FilesToCopyToUserFolder := ["\resources\config\default_config_trade.ini", "\resources\config\default_config.ini", "\resources\ahk\default_AdditionalMacros.txt"]
 PoEScripts_HandleUserSettings(projectName, A_MyDocuments, projectName, FilesToCopyToUserFolder, A_ScriptDir)
-userDirectory := A_MyDocuments . "\" . projectName . PoEScripts_isDevelopmentVersion()
-
-/*	 
-	set some global project variables and pass them later to TradeMacroInit
-*/
-settings := "projectName = " . projectName . "`n"
-settings .= "userDirectory = " . userDirectory . "`n"
+isDevelopmentVersion := PoEScripts_isDevelopmentVersion()
+userDirectory := A_MyDocuments . "\" . projectName . isDevelopmentVersion
 
 /*	 
 	merge all scripts into `_TradeMacroMain.ahk` and execute it.
@@ -52,7 +47,7 @@ FileAppend, %addMacros%	, %A_ScriptDir%\_TradeMacroMain.ahk
 FileAppend, %trade%		, %A_ScriptDir%\_TradeMacroMain.ahk
 
 ; pass some parameters to TradeMacroInit
-Run %A_AhkPath% %A_ScriptDir%\_TradeMacroMain.ahk %projectName% %userDirectory%
+Run %A_AhkPath% %A_ScriptDir%\_TradeMacroMain.ahk %projectName% %userDirectory% %isDevelopmentVersion%
 
 ExitApp
 

@@ -1,10 +1,11 @@
 ﻿#Include, %A_ScriptDir%\lib\JSON.ahk
+#Include, %A_ScriptDir%\lib\zip.ahk
 
-PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScreenTitle = "") {
-	GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScreenTitle)
+PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle = "") {
+	GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle)
 }
 
-GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScreenTitle = "") {
+GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle = "") {
 	If (ShowUpdateNotification = 0) {
 		return
 	}
@@ -65,7 +66,10 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 		}
 
 		; get download link to zip files (normal release zip and asset zip file)
-		downloadURL_zip := LatestRelease.zipball_url
+		UrlParts := StrSplit(LatestRelease.zipball_url, "/")
+		downloadFile 		:= UrlParts[UrlParts.MaxIndex()] . ".zip"
+		downloadURL_zip 	:= "https://github.com/" . user . "/" . repo . "/archive/" . downloadFile
+		downloadURL_asset 	:= ""
 		If (LatestRelease.assets.Length()) {
 			For key, val in LatestRelease.assets {
 				If (val.content_type = "application/zip") {
@@ -73,6 +77,11 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 				}
 			}
 		}
+		
+		global updateWindow_Project 		:= repo
+		global updateWindow_DefaultFolder	:= A_ScriptDir
+		global updateWindow_isDevVersion	:= isDevVersion
+		global updateWindow_downloadURL	:= StrLen(downloadURL_asset) ? downloadURL_asset : downloadURL_zip
 		
 		isPrerelease:= LatestRelease.prerelease
 		releaseTag  := LatestRelease.tag_name
@@ -91,7 +100,7 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 			Gui, UpdateNotification:Font,, Consolas
 			
 			boxHeight := isPrerelease ? 80 : 60
-			Gui, UpdateNotification:Add, GroupBox, w580 h%boxHeight% cGreen, Update available!
+			Gui, UpdateNotification:Add, GroupBox, w580 h%boxHeight% cGreen, Update available!			
 			If (isPrerelease) {
 				Gui, UpdateNotification:Add, Text, x20 yp+20, Warning: This is a pre-release.
 				Gui, UpdateNotification:Add, Text, x20 y+10, Installed version:
@@ -104,7 +113,8 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 			
 			Gui, UpdateNotification:Add, Text, x150 yp+0,  %currentLabel%	
 			
-			Gui, UpdateNotification:Add, Link, x+20 yp+0 cBlue, <a href="%releaseURL%">Download it here</a>        
+			Gui, UpdateNotification:Add, Link, x+20 yp+0 cBlue, <a href="%releaseURL%">Download it here</a>
+			Gui, UpdateNotification:Add, Button, x+20 yp-5 gUpdateScript, Update
 			Gui, UpdateNotification:Add, Text, x20 y+0, Latest version:
 			
 			Gui, UpdateNotification:Add, Text, x150 yp+0,  %latestLabel%
@@ -114,12 +124,13 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 			
 			Gui, UpdateNotification:Add, Button, gCloseUpdateWindow, Close
 			Gui, UpdateNotification:Show, w600 xCenter yCenter, Update 
-			ControlFocus, Close, Update
+			ControlFocus, Update, Update
 			WinWaitClose, Update
 		}
 	} Catch e {
 		MsgBox,,, % "Update-Check failed, Exception thrown!`n`nwhat: " e.what "`nfile: " e.file	"`nline: " e.line "`nmessage: " e.message "`nextra: " e.extra
 	}
+	
 	Return
 }
 
@@ -254,6 +265,142 @@ GetVersionIdentifierPriority(identifier) {
 	}
 }
 
+UpdateScript(url, project, defaultDir, isDevVersion) {	
+	prompt := "Please select the folder you want to install/extract" project " to.`n"
+	prompt .= "Selecting an existing folder will prompt you to overwrite it. "
+	prompt .= "Choosing to overwrite it will back up that folder, for example 'MyFolder_backup'.`n"
+	
+	defaultFolder := RegExReplace(defaultDir, "i)[^\\]+$", "")
+	; append '_devUpdate' to the folder if it's a development version (.git folder exists)
+	defaultFolder := StrLen(isDevVersion) > 0 ? defaultFolder . project . "_devUpdate" : defaultFolder . project
+	; check for equality but ignore case sensitivity (prefer current script dir)
+	defaultFolder := (defaultFolder != defaultDir) ? defaultFolder : defaultDir
+	
+	; create dev folder if it doesn't exist, remove it later if not used
+	createdFolder := false
+	If (!InStr(FileExist(defaultFolder), "D")) {
+		createdFolder := true
+		FileCreateDir, %defaultFolder%
+	}
+	
+	FileSelectFolder, InstallPath, *%defaultFolder%, 3, %prompt%
+	If (ErrorLevel) {
+		; dialog canceled, do nothing
+	} 
+	Else If (InstallPath = ) {
+		MsgBox, You didn't select a folder.
+	}	    
+	Else {
+		Gui, Cancel
+		
+		; remove created dev folder if unused
+		If (createdFolder and defaultFolder != InstallPath) {
+			FileRemoveDir, %defaultFolder%, 1
+		}
+		; check if install folder is empty 
+		If (not IsEmpty(InstallPath)) {
+			MsgBox, 4,, Folder (%InstallPath%) is not empty, overwrite it after making a backup?
+			IfMsgBox Yes 
+			{
+				; remove backup folder if it already exists
+				If (InStr(FileExist(InstallPath "_backup"), "D")) {
+					FileRemoveDir, %InstallPath%_backup, 1
+				}
+				FileMoveDir, %InstallPath%, %InstallPath%_backup, R  ; Simple rename.
+				; create folder that was renamed as backup
+				;FileCreateDir, %InstallPath%
+			}
+		}
+
+		savePath := "" ; ByRef
+		If (DownloadRelease(url, project, savePath)) {
+			folderName := ExtractRelease(savePath, project)
+			If (StrLen(folderName)) {
+				; successfully downloaded and extracted release.zip to %A_Temp%/%Project%/ext
+				FileMoveDir, %savePath%\%folderName%, %InstallPath%, 2				
+			}
+		}		
+	}
+}
+
+DownloadRelease(URL, project, ByRef savePath) {
+	static nothing := ComObjError(0)
+	static oHTTP   := ComObjCreate("WinHttp.WinHttpRequest.5.1")
+	static oADO    := ComObjCreate("adodb.stream")
+	
+	SplashTextOn, 300, 20, %project% update, Downloading .zip archive...
+	oHTTP.Open("GET",url)
+	oHTTP.SetRequestHeader("Content-type","application/octet-stream")
+	; we need the useragent with the repository name to download files
+	oHTTP.SetRequestHeader("User-Agent", project)
+	oHTTP.Send("")
+	oHTTP.WaitForResponse()
+
+	savePath := A_Temp . "\" . project . "\" . "release.zip"
+	If (!InStr(FileExist(A_Temp "\" project), "D")) {
+		FileCreateDir, %A_Temp%\%project%
+	}
+	
+	oADO.Type := 1 ; adTypeBinary = 1
+	oADO.Open()
+	oADO.Write( oHTTP.ResponseBody )
+	oADO.SaveToFile( savePath, 2 )
+	oADO.Close()
+	SplashTextOff
+	
+	If (oHTTP.Status != 200) {
+		MsgBox, 16,, % "Error downloading file. HTTP status: " oHTTP.Status " " oHTTP.StatusText 
+		Return False
+	}
+	
+	; not sure if this is neccessary
+	FileGetSize, sizeOnDisk, %SavePath%
+	size := oHTTP.GetResponseHeader("Content-Length")	
+	If (size != sizeOnDisk) {
+		MsgBox, 16,, % "Error: size of downloaded file is incorrect."
+		Return False
+	}	
+	; MsgBox % "HTTP/1.1 " oHTTP.Status " " oHTTP.StatusText "`n" oHTTP.GetAllResponseHeaders()
+	
+	Return True
+}
+
+ExtractRelease(file, project) {
+	SplitPath, file, f_name, f_dir, f_ext, f_name_no_ext, f_drive
+	sUnz := f_dir "\ext"  ; Directory to unzip files	
+	
+	; empty extraction sub-directory
+	Try {
+		FileRemoveDir, %sUnz%, 1	
+	} Catch e {
+		
+	}
+	FileCreateDir, %sUnz%
+	
+	; extract release.zip
+	SplashTextOn, 300, 20, %project% update, Extracting downloaded .zip archive...
+	Extract2Folder(file,sUnz)
+	SplashTextOff
+	
+	; find folder name of extracted archive (to be sure we know the right one)
+	Loop, %sUnz%\*, 1, 0
+	{
+		folderName = %A_LoopFileLongPath%
+	}
+	
+	Return folderName
+}
+
+IsEmpty(Dir){
+	Loop %Dir%\*.*, 0, 1
+		return 0
+	return 1
+}
+
 CloseUpdateWindow:
 	Gui, Cancel
+Return
+
+UpdateScript:
+	UpdateScript(updateWindow_downloadURL, updateWindow_Project, updateWindow_DefaultFolder, updateWindow_isDevVersion)	
 Return
