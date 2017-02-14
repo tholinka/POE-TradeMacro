@@ -290,9 +290,7 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 	Else If (InstallPath = ) {
 		MsgBox, You didn't select a folder.
 	}	    
-	Else {
-		Gui, Cancel
-		
+	Else {		
 		; remove created dev folder if unused
 		If (createdFolder and defaultFolder != InstallPath) {
 			FileRemoveDir, %defaultFolder%, 1
@@ -301,7 +299,8 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 		If (not IsEmpty(InstallPath)) {
 			MsgBox, 4,, Folder (%InstallPath%) is not empty, overwrite it after making a backup?
 			IfMsgBox Yes 
-			{
+			{				
+				Gui, Cancel
 				; remove backup folder if it already exists
 				If (InStr(FileExist(InstallPath "_backup"), "D")) {
 					FileRemoveDir, %InstallPath%_backup, 1
@@ -310,6 +309,13 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 				; create folder that was renamed as backup
 				;FileCreateDir, %InstallPath%
 			}
+			IfMsgBox No 
+			{
+				Return
+			}
+		}
+		Else {		
+			Gui, Cancel
 		}
 
 		savePath := "" ; ByRef
