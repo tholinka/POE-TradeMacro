@@ -29,7 +29,7 @@ userDirectory := A_MyDocuments . "\" . projectName . PoEScripts_isDevelopmentVer
 settings := "projectName = " . projectName . "`n"
 settings .= "userDirectory = " . userDirectory . "`n"
 
-/*	 
+/*
 	merge all scripts into `_ItemInfoMain.ahk` and execute it.
 */
 FileRead, info		, %A_ScriptDir%\resources\ahk\POE-ItemInfo.ahk

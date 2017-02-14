@@ -40,14 +40,30 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 		}
 		
 		parsedJSON := JSON.Load(html)
-		LatestRelease := {}		
+		LatestRelease := {}
+		LastXReleases := []
+		updateNotes := ""
+		i := 0
+		showReleases  := 5
 		For key, val in parsedJSON {
+			i++
+			If (i <= showReleases) {
+				tempObj := {}
+				tempObj.notes 		:= ParseDescription(val.body)
+				tempObj.tag 		:= val.tag_name
+				tempObj.published 	:= ParsePublishDate(val.published_at)
+				tempObj.textBlock 	:= CreateTextBlock(tempObj.notes, tempObj.published, tempObj.tag)
+				updateNotes 		.= tempObj.textBlock
+				LastXReleases.push(tempObj)
+			}
+		}
+		For key, val in parsedJSON {			
 			If (not val.draft) {
 				LatestRelease := val				
 				Break
 			}
 		}
-		
+
 		; get download link to zip files (normal release zip and asset zip file)
 		downloadURL_zip := LatestRelease.zipball_url
 		If (LatestRelease.assets.Length()) {
@@ -65,20 +81,17 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 		description := LatestRelease.body
 		
 		RegExReplace(releaseTag, "^v", releaseTag)
-		versions := ParseVersionStringsToObject(releaseTag, ReleaseVersion)
-
-		description := RegExReplace(description, "iU)\\""", """")
-		StringReplace, description, description, \r\n, §, All 
-		StringReplace, description, description, \n, §, All 
+		versions		:= ParseVersionStringsToObject(releaseTag, ReleaseVersion)
 		
 		newRelease := CompareVersions(versions.latest, versions.current)
 		If (newRelease) {
 			If(SplashScreenTitle) {
 				WinSet, AlwaysOnTop, Off, %SplashScreenTitle%
 			}
-			;Gui, UpdateNotification:Add, Text, cGreen, Update available!
+			Gui, UpdateNotification:Font,, Consolas
+			
 			boxHeight := isPrerelease ? 80 : 60
-			Gui, UpdateNotification:Add, GroupBox, w380 h%boxHeight% cGreen, Update available!
+			Gui, UpdateNotification:Add, GroupBox, w580 h%boxHeight% cGreen, Update available!
 			If (isPrerelease) {
 				Gui, UpdateNotification:Add, Text, x20 yp+20, Warning: This is a pre-release.
 				Gui, UpdateNotification:Add, Text, x20 y+10, Installed version:
@@ -89,27 +102,18 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 			currentLabel := versions.current.label
 			latestLabel  := versions.latest.label
 			
-			Gui, UpdateNotification:Font,, Consolas			
-			Gui, UpdateNotification:Add, Text, x100 yp+0,  %currentLabel%			
-			Gui, UpdateNotification:Font,,
+			Gui, UpdateNotification:Add, Text, x150 yp+0,  %currentLabel%	
 			
 			Gui, UpdateNotification:Add, Link, x+20 yp+0 cBlue, <a href="%releaseURL%">Download it here</a>        
 			Gui, UpdateNotification:Add, Text, x20 y+0, Latest version:
 			
-			Gui, UpdateNotification:Font,, Consolas	
-			Gui, UpdateNotification:Add, Text, x100 yp+0,  %latestLabel%
-			Gui, UpdateNotification:Font,,
+			Gui, UpdateNotification:Add, Text, x150 yp+0,  %latestLabel%
 			
-			Gui, UpdateNotification:Add, Text, x10 cGreen, Update notes:		
-			Loop, Parse, description, §
-			{
-				If(StrLen(A_LoopField) > 1) {
-					Gui, UpdateNotification:Add, Text, w320 x10 y+5, % "- " A_LoopField				
-				}
-			}
+			Gui, UpdateNotification:Add, Text, x10 cGreen, Update notes:
+			Gui, UpdateNotification:Add, Edit, r20 ReadOnly w580 BackgroundTrans, %updateNotes%
 			
 			Gui, UpdateNotification:Add, Button, gCloseUpdateWindow, Close
-			Gui, UpdateNotification:Show, w400 xCenter yCenter, Update 
+			Gui, UpdateNotification:Show, w600 xCenter yCenter, Update 
 			ControlFocus, Close, Update
 			WinWaitClose, Update
 		}
@@ -117,6 +121,29 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, SplashScree
 		MsgBox,,, % "Update-Check failed, Exception thrown!`n`nwhat: " e.what "`nfile: " e.file	"`nline: " e.line "`nmessage: " e.message "`nextra: " e.extra
 	}
 	Return
+}
+
+ParseDescription(description) {
+	description := RegExReplace(description, "iU)\\""", """")
+	StringReplace, description, description, \r\n, §, All 
+	StringReplace, description, description, \n, §, All
+
+	Return description
+}
+
+ParsePublishDate(date) {	
+	TimeStr := RegExReplace(date, "i)-|T|:|Z")	
+	FormatTime, TimeStr, %TimeStr%, ShortDate
+	Return TimeStr
+}
+
+CreateTextBlock(description, date, tag) {
+	block := "-----------------------------------------------------------------------------------------" . "`n"
+	block .= "[" . date . "]  Version: " . tag . "`n"
+	block .= "-----------------------------------------------------------------------------------------" . "`n"
+	block .= description . "`n`n"
+	
+	Return block
 }
 
 CompareVersions(latest, current) {
