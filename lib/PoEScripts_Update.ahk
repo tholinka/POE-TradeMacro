@@ -317,7 +317,7 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 			folderName := ExtractRelease(savePath, project)
 			If (StrLen(folderName)) {
 				; successfully downloaded and extracted release.zip to %A_Temp%/%Project%/ext
-				FileMoveDir, %savePath%\%folderName%, %InstallPath%, 2				
+				FileMoveDir, %folderName%, %InstallPath%, 2			
 			}
 		}		
 	}
