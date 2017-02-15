@@ -113,11 +113,11 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirecto
 			
 			Gui, UpdateNotification:Add, Text, x150 yp+0,  %currentLabel%	
 			
-			Gui, UpdateNotification:Add, Link, x+20 yp+0 cBlue, <a href="%releaseURL%">Download it here</a>
-			Gui, UpdateNotification:Add, Button, x+20 yp-5 gUpdateScript, Update
 			Gui, UpdateNotification:Add, Text, x20 y+0, Latest version:
 			
 			Gui, UpdateNotification:Add, Text, x150 yp+0,  %latestLabel%
+			Gui, UpdateNotification:Add, Link, x+20 yp+0 cBlue, <a href="%releaseURL%">Download it here</a>
+			Gui, UpdateNotification:Add, Button, x+20 yp-5 gUpdateScript, Update
 			
 			Gui, UpdateNotification:Add, Text, x10 cGreen, Update notes:
 			Gui, UpdateNotification:Add, Edit, r20 ReadOnly w580 BackgroundTrans, %updateNotes%
