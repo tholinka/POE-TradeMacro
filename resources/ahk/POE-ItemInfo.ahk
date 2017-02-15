@@ -128,6 +128,7 @@ RunTests := False
 #SingleInstance force
 #NoEnv ; Recommended for performance and compatibility with future AutoHotkey releases.
 #Persistent ; Stay open in background
+SetWorkingDir, %A_ScriptDir%
 SendMode Input ; Recommended for new scripts due to its superior speed and reliability.
 
 ;Define exe names for the regular and steam version, for later use at the very end of the script. This needs to be done early, in the "auto-execute section".

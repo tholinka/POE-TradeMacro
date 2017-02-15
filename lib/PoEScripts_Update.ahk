@@ -306,8 +306,6 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 					FileRemoveDir, %InstallPath%_backup, 1
 				}
 				FileMoveDir, %InstallPath%, %InstallPath%_backup, R  ; Simple rename.
-				; create folder that was renamed as backup
-				;FileCreateDir, %InstallPath%
 			}
 			IfMsgBox No 
 			{
@@ -322,8 +320,24 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 		If (DownloadRelease(url, project, savePath)) {
 			folderName := ExtractRelease(savePath, project)
 			If (StrLen(folderName)) {
-				; successfully downloaded and extracted release.zip to %A_Temp%/%Project%/ext
-				FileMoveDir, %folderName%, %InstallPath%, 2			
+				; successfully downloaded and extracted release.zip to %A_Temp%\%Project%\ext
+				; copy script to %A_Temp%\%Project%
+				SplitPath, savePath, , saveDir
+				externalScript := saveDir . "\PoEScripts_FinishUpdate.ahk"
+				FileCopy, %A_ScriptDir%\lib\PoEScripts_FinishUpdate.ahk, %externalScript%, 1
+				
+				; try to run the script and exit the app
+				; this needs to be done so that we can overwrite the current scripts directory
+				If (FileExist(externalScript)) {
+					Run %A_AhkPath% %externalScript% %A_ScriptDir% %folderName% %InstallPath% %project%
+					If (ErrorLevel) {
+						MsgBox Update failed, couldn't launch 'FinishUpdate' script. File not found.
+					}
+				}
+				Else {
+					MsgBox Update failed, couldn't launch 'FinishUpdate' script.
+				}				
+				ExitApp
 			}
 		}		
 	}
