@@ -330,17 +330,17 @@ class UserOptions {
 }
 Opts := new UserOptions()
 
-; Under no circumstance set the variable "SkipItemInfoUpdateCall" in this script
-; This code block should only be called when ItemInfo runs by itself, not when it's included in other scripts like PoE-TradeMacro
-; "SkipItemInfoUpdateCall" should be set outside by other scripts
+; Use some variables to skip the update check or enable/disable update check feedback.
+; The first call on script start shouldn't have any feedback and including ItemInfo in other scripts should call the update once from that other script.
+; Under no circumstance set the variable "SkipItemInfoUpdateCall" in this script.
+; This code block should only be called when ItemInfo runs by itself, not when it's included in other scripts like PoE-TradeMacro.
+; "SkipItemInfoUpdateCall" should be set outside by other scripts.
+global firstUpdateCheck := true
 If (!SkipItemInfoUpdateCall) {
-	; file "PoEScripts_Update.ahk" has to exist in "%A_ScriptDir%\lib\"
-	repo := Globals.Get("GithubRepo")
-	user := Globals.Get("GithubUser")
-	ReleaseVersion := Globals.Get("ReleaseVersion")
-	ShowUpdateNotification := 1
-	PoEScripts_Update(user, repo, ReleaseVersion, userDirectory, isDevVersion, ShowUpdateNotification)
+	GoSub, CheckForUpdates	
 }
+firstUpdateCheck := false
+
 
 class Fonts {
 
@@ -558,7 +558,7 @@ IfNotExist, %userDirectory%\config.ini
 
 ; Windows system tray icon
 ; possible values: poe.ico, poe-bw.ico, poe-web.ico, info.ico
-; set before creating the settings UI so it gets used for the settigns dialog as well
+; set before creating the settings UI so it gets used for the settings dialog as well
 Menu, Tray, Icon, %A_ScriptDir%\resources\images\poe-bw.ico
 
 ReadConfig()
@@ -566,10 +566,7 @@ Sleep, 100
 CreateSettingsUI()
 GoSub, FetchCurrencyData
 
-Menu, TextFiles, Add, User Settings Folder, EditOpenUserSettings
 Menu, TextFiles, Add, Additional Macros, EditAdditionalMacros
-Menu, TextFiles, Add, Currency Rates, EditCurrencyRates
-
 
 ; Menu tooltip
 RelVer := Globals.Get("ReleaseVersion")
@@ -578,9 +575,11 @@ Menu, Tray, Tip, Path of Exile Item Info %RelVer%
 Menu, Tray, NoStandard
 Menu, Tray, Add, About..., MenuTray_About
 Menu, Tray, Add, % Globals.Get("SettingsUITitle", "PoE Item Info Settings"), ShowSettingsUI
+Menu, Tray, Add, Check for updates, CheckForUpdates
 Menu, Tray, Add, Update Notes, ShowUpdateNotes
 Menu, Tray, Add ; Separator
 Menu, Tray, Add, Edit, :TextFiles
+Menu, Tray, Add, Open User Folder, EditOpenUserSettings
 Menu, Tray, Add ; Separator
 Menu, Tray, Standard
 Menu, Tray, Default, % Globals.Get("SettingsUITitle", "PoE Item Info Settings")
@@ -8799,6 +8798,25 @@ UnhandledDlg_ShowItemText:
 UnhandledDlg_OK:
 	Gui, 3:Submit
 	return
+	
+CheckForUpdates:
+	If (not globalUpdateInfo.repo) {
+		global globalUpdateInfo := {}
+	}
+	If (not SkipItemInfoUpdateCall) {
+		globalUpdateInfo.repo := Globals.Get("GithubRepo")
+		globalUpdateInfo.user := Globals.Get("GithubUser")
+		globalUpdateInfo.releaseVersion := Globals.Get("ReleaseVersion")
+	}
+
+	ShowUpdateNotification := 1
+	hasUpdate := PoEScripts_Update(globalUpdateInfo.user, globalUpdateInfo.repo, globalUpdateInfo.releaseVersion, userDirectory, isDevVersion, ShowUpdateNotification)
+	If (hasUpdate = "no update" and not firstUpdateCheck) {
+		SplashTextOn, , , No update available
+		Sleep 2000
+		SplashTextOff
+	}
+Return
 	
 FetchCurrencyData:
 	CurrencyDataJSON := {}

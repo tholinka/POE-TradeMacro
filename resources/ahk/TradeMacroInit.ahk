@@ -114,6 +114,11 @@ TradeGlobals.Set("DefaultLeague", (tempLeagueIsRunning > 0) ? "tmpstandard" : "s
 TradeGlobals.Set("GithubUser", "POE-TradeMacro")
 TradeGlobals.Set("GithubRepo", "POE-TradeMacro")
 TradeGlobals.Set("ReleaseVersion", TradeReleaseVersion)
+global globalUpdateInfo := {}
+globalUpdateInfo.repo := TradeGlobals.Get("GithubRepo")
+globalUpdateInfo.user := TradeGlobals.Get("GithubUser")
+globalUpdateInfo.releaseVersion := TradeGlobals.Get("ReleaseVersion")
+
 TradeGlobals.Set("SettingsScriptList", ["TradeMacro", "ItemInfo"])
 TradeGlobals.Set("SettingsUITitle", "PoE (Trade) Item Info Settings")
 argumentProjectName   = %1%
@@ -137,7 +142,9 @@ Sleep, 100
 
 ; set this variable to skip the update check in "PoE-ItemInfo.ahk"
 SkipItemInfoUpdateCall := 1
+firstUpdateCheck := true
 TradeFunc_ScriptUpdate()
+firstUpdateCheck := false
 
 TradeGlobals.Set("Leagues", TradeFunc_GetLeagues())
 SearchLeague := (StrLen(TradeOpts.SearchLeague) > 0) ? TradeOpts.SearchLeague : TradeGlobals.Get("DefaultLeague")
@@ -648,12 +655,13 @@ TradeFunc_GetTempLeagueDates(){
 
 ;----------------------- Handle available script updates ---------------------------------------
 TradeFunc_ScriptUpdate() {
-	repo := TradeGlobals.Get("GithubRepo")
-	user := TradeGlobals.Get("GithubUser")
-	ReleaseVersion := TradeGlobals.Get("ReleaseVersion")
-	ShowUpdateNotification := TradeOpts.ShowUpdateNotifications
+	If (firstUpdateCheck) {
+		ShowUpdateNotification := TradeOpts.ShowUpdateNotifications	
+	} Else {
+		ShowUpdateNotification := 1
+	}	
 	SplashScreenTitle := "PoE-TradeMacro"
-	PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle)
+	PoEScripts_Update(globalUpdateInfo.user, globalUpdateInfo.repo, globalUpdateInfo.releaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle)
 }
 
 ;----------------------- Trade Settings UI (added onto ItemInfos Settings UI) ---------------------------------------

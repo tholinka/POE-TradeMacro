@@ -2,7 +2,8 @@
 #Include, %A_ScriptDir%\lib\zip.ahk
 
 PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle = "") {
-	GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle)
+	status := GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle)
+	Return status
 }
 
 GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle = "") {
@@ -126,6 +127,10 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirecto
 			Gui, UpdateNotification:Show, w600 xCenter yCenter, Update 
 			ControlFocus, Update, Update
 			WinWaitClose, Update
+		}
+		Else {
+			s := "no update"
+			Return s
 		}
 	} Catch e {
 		MsgBox,,, % "Update-Check failed, Exception thrown!`n`nwhat: " e.what "`nfile: " e.file	"`nline: " e.line "`nmessage: " e.message "`nextra: " e.extra
