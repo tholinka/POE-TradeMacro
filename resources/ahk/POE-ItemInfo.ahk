@@ -179,13 +179,15 @@ Globals.Set("GithubRepo", "POE-ItemInfo")
 Globals.Set("GithubUser", "aRTy42")
 Globals.Set("ScriptList", [A_ScriptDir "\POE-ItemInfo"])
 Globals.Set("UpdateNoteFileList", [[A_ScriptDir "\resources\updates.txt","ItemInfo"]])
-argumentProjectName   = %1%
-argumentUserDirectory = %2%
-argumentIsDevVersion  = %3%
+argumentProjectName		= %1%
+argumentUserDirectory	= %2%
+argumentIsDevVersion	= %3%
+argumentOverwrittenFiles = %4%
 Globals.Set("ProjectName", argumentProjectName)
 ; make sure not to overwrite these variables if set from another script
-global userDirectory := userDirectory ? userDirectory : argumentUserDirectory
-global isDevVersion  := isDevVersion  ? isDevVersion  : argumentIsDevVersion
+global userDirectory		:= userDirectory ? userDirectory : argumentUserDirectory
+global isDevVersion			:= isDevVersion  ? isDevVersion  : argumentIsDevVersion
+global overwrittenUserFiles	:= overwrittenUserFiles ? overwrittenUserFiles : argumentOverwrittenFiles
 
 global SuspendPOEItemScript = 0
 
@@ -564,6 +566,9 @@ Menu, Tray, Icon, %A_ScriptDir%\resources\images\poe-bw.ico
 ReadConfig()
 Sleep, 100
 CreateSettingsUI()
+If (StrLen(overwrittenUserFiles)) {
+	ShowChangedUserFiles()
+}
 GoSub, FetchCurrencyData
 
 Menu, TextFiles, Add, Additional Macros, EditAdditionalMacros
@@ -8380,6 +8385,24 @@ ShowUpdateNotes()
 	Gui, UpdateNotes:Show, w%SettingsUIWidth% h%SettingsUIHeight%, %SettingsUITitle%
 }
 
+ShowChangedUserFiles()
+{
+	Gui, ChangedUserFiles:Destroy
+	
+	Gui, ChangedUserFiles:Add, Text, , Following user files were changed in the last update and `nwere overwritten (old files were backed up):
+	
+	Loop, Parse, overwrittenUserFiles, `n
+	{
+		If (StrLen(A_Loopfield) > 0) {
+			Gui, ChangedUserFiles:Add, Text, y+5, %A_LoopField%	
+		}		
+	}
+	Gui, ChangedUserFiles:Add, Button, y+10 gChangedUserFilesWindow_Cancel, Close
+	Gui, ChangedUserFiles:Add, Button, x+10 yp+0 gChangedUserFilesWindow_OpenFolder, Open user folder
+	Gui, ChangedUserFiles:Show, w300, Changed User Files
+	ControlFocus, Close, Changed User Files
+}
+
 IniRead(ConfigPath, Section_, Key, Default_)
 {
 	Result := ""
@@ -8604,6 +8627,15 @@ OnClipBoardChange:
 	
 ShowUpdateNotes:
 	ShowUpdateNotes()
+	return
+
+ChangedUserFilesWindow_Cancel:
+	Gui, ChangedUserFiles:Cancel
+	return
+
+ChangedUserFilesWindow_OpenFolder:
+	Gui, ChangedUserFiles:Cancel
+	GoSub, EditOpenUserSettings
 	return
 
 ShowSettingsUI:

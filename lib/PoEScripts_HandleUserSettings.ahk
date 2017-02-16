@@ -1,5 +1,6 @@
 ﻿#Include, CalcChecksum.ahk
 
+
 PoEScripts_HandleUserSettings(ProjectName, BaseDir, External, FilesToCopy, sourceDir) {
 	Dir := BaseDir . "\" . ProjectName
 	
@@ -13,10 +14,12 @@ PoEScripts_HandleUserSettings(ProjectName, BaseDir, External, FilesToCopy, sourc
 	
 	; copy files after checking if it's neccessary (files do not exist, files were changed in latest update)
 	; copy .ini files and AdditionalMacros.txt to A_MyDocuments/ProjectName
-	PoEScripts_CopyFiles(FilesToCopy, sourceDir, Dir)
+	PoEScripts_CopyFiles(FilesToCopy, sourceDir, Dir, fileList)
+	
+	Return fileList
 }
 
-PoEScripts_CopyFiles(Files, sourceDir, Dir) {
+PoEScripts_CopyFiles(Files, sourceDir, Dir, ByRef fileList) {
 	tempObj 		:= PoEScripts_ParseFileHashes(Dir)
 	hashes 		:= tempObj.dynamic
 	hashes_locked 	:= tempObj.static
@@ -73,7 +76,6 @@ PoEScripts_CopyFiles(Files, sourceDir, Dir) {
 		Loop, % overwrittenFiles.Length() {
 			fileList .= "- " . overwrittenFiles[A_Index] . "`n"
 		}
-		;MsgBox % "Following user files were changed in the last update and were overwritten (old files were backed up): `n`n" . fileList
 	}
 	
 	FileRemoveDir, %Dir%\temp, 1

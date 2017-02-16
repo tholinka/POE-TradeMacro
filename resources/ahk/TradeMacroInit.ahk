@@ -121,12 +121,14 @@ globalUpdateInfo.releaseVersion := TradeGlobals.Get("ReleaseVersion")
 
 TradeGlobals.Set("SettingsScriptList", ["TradeMacro", "ItemInfo"])
 TradeGlobals.Set("SettingsUITitle", "PoE (Trade) Item Info Settings")
-argumentProjectName   = %1%
-argumentUserDirectory = %2%
-argumentIsDevVersion  = %3%
+argumentProjectName		= %1%
+argumentUserDirectory	= %2%
+argumentIsDevVersion	= %3%
+argumentOverwrittenFiles = %4%
 TradeGlobals.Set("ProjectName", argumentProjectName)
-global userDirectory := argumentUserDirectory
-global isDevVersion  := argumentIsDevVersion
+global userDirectory		:= argumentUserDirectory
+global isDevVersion			:= argumentIsDevVersion
+global overwrittenUserFiles	:= argumentOverwrittenFiles
 
 ; Create config file if neccessary and read it
 IfNotExist, %userDirectory%\config_trade.ini
