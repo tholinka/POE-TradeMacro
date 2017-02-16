@@ -172,15 +172,24 @@ CompareVersions(latest, current) {
 	}
 	Else {
 		equal := latest.major . latest.minor . latest.patch . "" == current.major . current.minor . current.patch . ""
-
-		If (RemoveLeadingZeros(latest.major) > RemoveLeadingZeros(current.major)) {
-			versionHigher := true
-		}
-		Else If (RemoveLeadingZeros(latest.minor) > RemoveLeadingZeros(current.minor)) {
-			versionHigher := true
-		}
-		Else If (RemoveLeadingZeros(latest.patch) > RemoveLeadingZeros(current.patch)) {
-			versionHigher := true
+		
+		Loop,  1 {
+			majorSmaller := RemoveLeadingZeros(latest.major) < RemoveLeadingZeros(current.major)
+			If (RemoveLeadingZeros(latest.major) > RemoveLeadingZeros(current.major)) {
+				versionHigher := true
+				break
+			}
+			
+			minorSmaller := RemoveLeadingZeros(latest.minor) < RemoveLeadingZeros(current.minor)
+			If (RemoveLeadingZeros(latest.minor) > RemoveLeadingZeros(current.minor) and not majorSmaller) {
+				versionHigher := true
+				break
+			}
+			
+			If (RemoveLeadingZeros(latest.patch) > RemoveLeadingZeros(current.patch) and not (minorSmaller or majorSmaller)) {
+				versionHigher := true
+				break
+			}
 		}
 		
 		If (latest.subVersion.priority or current.subVersion.priority) {
@@ -194,7 +203,6 @@ CompareVersions(latest, current) {
 				subVersionHigher := true
 			}
 		}
-
 		
 		If (equal and latest.fullRelease and not current.fullRelease) {
 			Return true
