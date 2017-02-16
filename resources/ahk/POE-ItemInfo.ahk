@@ -573,6 +573,8 @@ RelVer := Globals.Get("ReleaseVersion")
 Menu, Tray, Tip, Path of Exile Item Info %RelVer%
 
 Menu, Tray, NoStandard
+Menu, Tray, Add, Reload Script (Use only this), ReloadScript
+Menu, Tray, Add ; Separator
 Menu, Tray, Add, About..., MenuTray_About
 Menu, Tray, Add, % Globals.Get("SettingsUITitle", "PoE Item Info Settings"), ShowSettingsUI
 Menu, Tray, Add, Check for updates, CheckForUpdates
@@ -8783,6 +8785,11 @@ EditAdditionalMacros:
 
 EditCurrencyRates:
 	OpenCreateDataTextFile("CurrencyRates.txt")
+	return
+	
+ReloadScript:
+	scriptName := RegExReplace(Globals.Get("ProjectName"), "i)poe-", "Run_") . ".ahk"
+	Run, "%A_AhkPath%" "%A_ScriptDir%\%scriptName%"
 	return
 
 3GuiClose:
