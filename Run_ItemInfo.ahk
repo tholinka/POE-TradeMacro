@@ -41,7 +41,7 @@ FileAppend, %test%		, %A_ScriptDir%\_ItemInfoMain.ahk
 FileAppend, %addMacros%	, %A_ScriptDir%\_ItemInfoMain.ahk
 
 ; pass some parameters to ItemInfo
-Run %A_AhkPath% %A_ScriptDir%\_ItemInfoMain.ahk %projectName% %userDirectory% %isDevelopmentVersion%
+Run "%A_AhkPath%" "%A_ScriptDir%\_ItemInfoMain.ahk" "%projectName%" "%userDirectory%" "%isDevelopmentVersion%"
 
 ExitApp 
 

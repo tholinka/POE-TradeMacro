@@ -47,7 +47,7 @@ FileAppend, %addMacros%	, %A_ScriptDir%\_TradeMacroMain.ahk
 FileAppend, %trade%		, %A_ScriptDir%\_TradeMacroMain.ahk
 
 ; pass some parameters to TradeMacroInit
-Run %A_AhkPath% %A_ScriptDir%\_TradeMacroMain.ahk %projectName% %userDirectory% %isDevelopmentVersion%
+Run "%A_AhkPath%" "%A_ScriptDir%\_TradeMacroMain.ahk" "%projectName%" "%userDirectory%" "%isDevelopmentVersion%"
 
 ExitApp
 

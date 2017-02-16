@@ -271,9 +271,8 @@ GetVersionIdentifierPriority(identifier) {
 }
 
 UpdateScript(url, project, defaultDir, isDevVersion) {	
-	prompt := "Please select the folder you want to install/extract" project " to.`n"
-	prompt .= "Selecting an existing folder will prompt you to overwrite it. "
-	prompt .= "Choosing to overwrite it will back up that folder, for example 'MyFolder_backup'.`n"
+	prompt := "Please select the folder you want to install/extract " project " to.`n"
+	prompt .= "Selecting an existing folder will ask for confirmation and will back up that folder, for example 'MyFolder_backup'."
 	
 	defaultFolder := RegExReplace(defaultDir, "i)[^\\]+$", "")
 	; append '_devUpdate' to the folder if it's a development version (.git folder exists)
@@ -288,7 +287,7 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 		FileCreateDir, %defaultFolder%
 	}
 	
-	FileSelectFolder, InstallPath, *%defaultFolder%, 3, %prompt%
+	FileSelectFolder, InstallPath, *%defaultFolder%, 1, %prompt%
 	If (ErrorLevel) {
 		; dialog canceled, do nothing
 	} 
@@ -334,7 +333,7 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 				; try to run the script and exit the app
 				; this needs to be done so that we can overwrite the current scripts directory
 				If (FileExist(externalScript)) {
-					Run %A_AhkPath% %externalScript% %A_ScriptDir% %folderName% %InstallPath% %project%
+					Run "%A_AhkPath%" "%externalScript%" "%A_ScriptDir%" "%folderName%" "%InstallPath%" "%project%"
 					If (ErrorLevel) {
 						MsgBox Update failed, couldn't launch 'FinishUpdate' script. File not found.
 					}
@@ -381,9 +380,16 @@ DownloadRelease(URL, project, ByRef savePath) {
 	; not sure if this is neccessary
 	FileGetSize, sizeOnDisk, %SavePath%
 	size := oHTTP.GetResponseHeader("Content-Length")	
-	If (size != sizeOnDisk) {
-		MsgBox, 16,, % "Error: size of downloaded file is incorrect."
-		Return False
+	If (size == sizeOnDisk) {
+		MsgBox, 5,, % "Error: size of downloaded file is incorrect.`n`nUpdate has been cancelled."
+		IfMsgBox, Retry
+		{
+			DownloadRelease(URL, project, savePath)			
+		}
+		IfMsgBox, Cancel 
+		{
+			Return False	
+		}
 	}	
 	; MsgBox % "HTTP/1.1 " oHTTP.Status " " oHTTP.StatusText "`n" oHTTP.GetAllResponseHeaders()
 	

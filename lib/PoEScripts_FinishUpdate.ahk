@@ -28,7 +28,7 @@ If (ErrorLevel) {
 scriptStartFile := RegExReplace(projectName, "i).*-", "Run_") . ".ahk"
 scriptStartFile := installPath . "\" . scriptStartFile
 
-Run, %A_AhkPath% %scriptStartFile%
+Run, "%A_AhkPath%" "%scriptStartFile%"
 ; debug - use old filename if downloading TradeMaco <= 1.7.3-beta from github
 ;Run, %A_AhkPath% %installPath%\Run_only_this.ahk
 ExitApp
