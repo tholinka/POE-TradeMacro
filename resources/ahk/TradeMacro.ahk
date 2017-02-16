@@ -1409,7 +1409,6 @@ TradeFunc_GetMeanMedianPrice(html, payload){
 		
 		; add chaos-equivalents (chaos prices) together and count results
 		RegExMatch(ChaosValue, "i)data-value=""-?(\d+.?\d+?)""", priceChaos)
-		console.log(priceChaos)
 		If (StrLen(priceChaos1) > 0 or StrLen(CurrencyValue) > 0) {
 			SetFormat, float, 6.2
 			chaosEquivalent := 0
