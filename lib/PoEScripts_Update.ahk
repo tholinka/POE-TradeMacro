@@ -215,7 +215,7 @@ CompareVersions(latest, current) {
 		Else If (versionHigher) {
 			Return true
 		}
-		Else If (subVersionHigher) {
+		Else If (subVersionHigher and not current.fullRelease) {
 			Return true
 		}
 		Else {
@@ -482,7 +482,7 @@ DownloadRelease(URL, project, ByRef savePath) {
 	; not sure if this is neccessary
 	FileGetSize, sizeOnDisk, %SavePath%
 	size := oHTTP.GetResponseHeader("Content-Length")	
-	If (size == sizeOnDisk) {
+	If (size != sizeOnDisk) {
 		MsgBox, 5,, % "Error: size of downloaded file is incorrect.`n`nUpdate has been cancelled."
 		IfMsgBox, Retry
 		{
