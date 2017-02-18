@@ -307,11 +307,18 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 		If (createdFolder and defaultFolder != InstallPath) {
 			FileRemoveDir, %defaultFolder%, 1
 		}
+		
+		; check if install folder is readonly/temporary or a system folder
+		validPath := CheckForValidInstallFolder(InstallPath)
+		If (!validPath) {
+			Return
+		}
+
 		; check if install folder is empty 
 		If (not IsEmpty(InstallPath)) {
 			MsgBox, 4,, Folder (%InstallPath%) is not empty, overwrite it after making a backup?
 			IfMsgBox Yes 
-			{				
+			{			
 				Gui, Cancel
 				; remove backup folder if it already exists
 				If (InStr(FileExist(InstallPath "_backup"), "D")) {
@@ -353,6 +360,79 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 			}
 		}		
 	}
+}
+
+CheckForValidInstallFolder(path, ByRef r = "", ByRef t = ""){
+	; http://www.installmate.com/support/im9/using/symbols/functions/csidls.htm
+	; https://autohotkey.com/board/topic/9399-function-getcommonpath-get-path-to-standard-system-folder/
+	IfInString, Attributes, T	; temporary
+	{
+		t := "temporary"
+	}
+	IfInString, Attributes, R	; readonly
+	{
+		r := "readonly"
+	}
+	
+	If (Strlen(r) > 0 or StrLen(t) > 0) {
+		s := r 
+		s := StrLen(r) > 0 ? " and " t : t
+		msg := path " is a " s " folder. `n`nUpdate cancelled."
+		MsgBox % msg
+		Return false
+	}
+	
+	; could also use ahk variables like A_Temp, this should be a bit more flexible and has more possible paths
+	CSIDL := {}
+	CSIDL.FONTS				:= "0x0014"	; C:\Windows\Fonts 
+	CSIDL.LOCAL_APPDATA			:= "0x001C"	; non roaming, user\Local Settings\Application Data
+	CSIDL.MYMUSIC				:= "0x000d"	; "My Music" folder 
+	CSIDL.MYPICTURES			:= "0x0027"	; My Pictures, new for Win2K 
+	CSIDL.PERSONAL				:= "0x0005"	; My Documents 
+	CSIDL.PROGRAM_FILES_COMMON	:= "0x002b"	; C:\Program Files\Common 
+	CSIDL.PROGRAM_FILES			:= "0x0026"	; C:\Program Files 		
+	CSIDL.PROGRAM_FILES_COMMONX86	:= "0x2C"		; C:\Program Files\Common 
+	CSIDL.PROGRAM_FILESX86		:= "0x2A"		; C:\Program Files 
+	CSIDL.PROGRAMS				:= "0x0002"	; C:\Documents and Settings\username\Start Menu\Programs 
+	CSIDL.RESOURCES			:= "0x0038"	; %windir%\Resources\, For theme and other windows resources. 
+	CSIDL.STARTMENU			:= "0x000b"	; C:\Documents and Settings\username\Start Menu 
+	CSIDL.STARTUP				:= "0x0007"	; C:\Documents and Settings\username\Start Menu\Programs\Startup. 
+	CSIDL.SYSTEM				:= "0x0025"	; GetSystemDirectory() 
+	CSIDL.SYSTEMX86			:= "0x29"		; GetSystemDirectory() 
+	CSIDL.WINDOWS				:= "0x0024"	; GetWindowsDirectory()
+	CSIDL.DRIVES				:= "0x0011"
+	CSIDL.DESKTOP				:= "0x0000"
+	CSIDL.DESKTOPDIRECTORY		:= "0x0010"
+	CSIDL.DESKTOPDIRECTORY		:= "0x0010"
+	
+	invalid := false
+	For key, val in CSIDL {		
+		invalidPath := GetCommonPath(val)
+		If (path = invalidPath) {			
+			invalid := true
+			Break
+		}
+	}
+	
+	SplitPath, path, , , , , f_drive
+	If (path = f_drive "\") {
+		invalid := true
+	}	
+	
+	If (invalid) {
+		msg := "< " path " > is not a valid install location. Please choose a different location or create a sub folder. `n`nUpdate cancelled."
+		MsgBox % msg 
+		Return false
+	}
+	
+	Return true
+}
+
+GetCommonPath(csidl) {
+	val := csidl
+	VarSetCapacity(fpath, 256) 
+	DllCall( "shell32\SHGetFolderPath", "uint", 0, "int", val, "uint", 0, "int", 0, "str", fpath)
+	return %fpath% 
 }
 
 DownloadRelease(URL, project, ByRef savePath) {
