@@ -199,6 +199,9 @@ class UserOptions {
 
 	PutResultsOnClipboard := 0      ; Put result text on clipboard (overwriting the textual representation the game put there to begin with)
 
+	UpdateSkipSelection := 0
+	UpdateSkipBackup := 0
+
 	ShowItemLevel := 1              ; Show item level and the item type's base level (enabled by default change to 0 to disable)
 	ShowMaxSockets := 1             ; Show the max sockets based on ilvl and type
 	ShowDamageCalculations := 1     ; Show damage projections (for weapons only)
@@ -300,6 +303,8 @@ class UserOptions {
 	{
 		this.OnlyActiveIfPOEIsFront := GuiGet("OnlyActiveIfPOEIsFront")
 		this.PutResultsOnClipboard := GuiGet("PutResultsOnClipboard")
+		this.UpdateSkipSelection := GuiGet("UpdateSkipSelection")
+		this.UpdateSkipBackup := GuiGet("UpdateSkipBackup")		
 		this.ShowItemLevel := GuiGet("ShowItemLevel")
 		this.ShowMaxSockets := GuiGet("ShowMaxSockets")
 		this.ShowDamageCalculations := GuiGet("ShowDamageCalculations")
@@ -331,18 +336,6 @@ class UserOptions {
 	}
 }
 Opts := new UserOptions()
-
-; Use some variables to skip the update check or enable/disable update check feedback.
-; The first call on script start shouldn't have any feedback and including ItemInfo in other scripts should call the update once from that other script.
-; Under no circumstance set the variable "SkipItemInfoUpdateCall" in this script.
-; This code block should only be called when ItemInfo runs by itself, not when it's included in other scripts like PoE-TradeMacro.
-; "SkipItemInfoUpdateCall" should be set outside by other scripts.
-global firstUpdateCheck := true
-If (!SkipItemInfoUpdateCall) {
-	GoSub, CheckForUpdates	
-}
-firstUpdateCheck := false
-
 
 class Fonts {
 
@@ -565,6 +558,18 @@ Menu, Tray, Icon, %A_ScriptDir%\resources\images\poe-bw.ico
 
 ReadConfig()
 Sleep, 100
+
+; Use some variables to skip the update check or enable/disable update check feedback.
+; The first call on script start shouldn't have any feedback and including ItemInfo in other scripts should call the update once from that other script.
+; Under no circumstance set the variable "SkipItemInfoUpdateCall" in this script.
+; This code block should only be called when ItemInfo runs by itself, not when it's included in other scripts like PoE-TradeMacro.
+; "SkipItemInfoUpdateCall" should be set outside by other scripts.
+global firstUpdateCheck := true
+If (!SkipItemInfoUpdateCall) {
+	GoSub, CheckForUpdates
+}
+firstUpdateCheck := false
+
 CreateSettingsUI()
 If (StrLen(overwrittenUserFiles)) {
 	ShowChangedUserFiles()
@@ -8127,14 +8132,21 @@ CreateSettingsUI()
 	Global
 	
 	; General
-	GuiAddGroupBox("General", "x7 y+15 w260 h90 Section")
+	generalHeight := SkipItemInfoUpdateCall ? "90" : "150"
+	GuiAddGroupBox("General", "x7 y+15 w260 h" generalHeight " Section")
 
 	; Note: window handles (hwnd) are only needed if a UI tooltip should be attached.
 
 	GuiAddCheckbox("Only show tooltip if PoE is frontmost", "xs10 ys20 w210 h30", Opts.OnlyActiveIfPOEIsFront, "OnlyActiveIfPOEIsFront", "OnlyActiveIfPOEIsFrontH")
 	AddToolTip(OnlyActiveIfPOEIsFrontH, "If checked the script does nothing if the`nPath of Exile window isn't the frontmost")
 	GuiAddCheckbox("Put tooltip results on clipboard", "xs10 ys50 w210 h30", Opts.PutResultsOnClipboard, "PutResultsOnClipboard", "PutResultsOnClipboardH")
-	AddToolTip(PutResultsOnClipboardH, "Put tooltip result text onto the system clipboard`n(overwriting the item info text PoE put there to begin with)")
+	AddToolTip(PutResultsOnClipboardH, "Put tooltip result text onto the system clipboard`n(overwriting the item info text PoE put there to begin with)")	
+	If (!SkipItemInfoUpdateCall) {
+		GuiAddCheckbox("Update: Skip folder selection", "xs10 ys50 w210 h30", Opts.UpdateSkipSelection, "UpdateSkipSelection", "UpdateSkipSelectionH")
+		AddToolTip(UpdateSkipSelectionH, "Skips selecting an update location.`nThe current script directory will be used as default.")	
+		GuiAddCheckbox("Update: Skip backup", "xs10 ys50 w210 h30", Opts.UpdateSkipBackup, "UpdateSkipBackup", "UpdateSkipBackupH")
+		AddToolTip(UpdateSkipBackupH, "Skips making a backup of the install location/folder.")
+	}	
 
 	; Display
 
@@ -8233,6 +8245,10 @@ UpdateSettingsUI()
 
 	GuiControl,, OnlyActiveIfPOEIsFront, % Opts.OnlyActiveIfPOEIsFront
 	GuiControl,, PutResultsOnClipboard, % Opts.PutResultsOnClipboard
+	If (!SkipItemInfoUpdateCall) {
+		GuiControl,, UpdateSkipSelection, % Opts.UpdateSkipSelection
+		GuiControl,, UpdateSkipBackup, % Opts.UpdateSkipBackup
+	}
 	GuiControl,, ShowItemLevel, % Opts.ShowItemLevel
 	GuiControl,, ShowMaxSockets, % Opts.ShowMaxSockets
 	GuiControl,, ShowDamageCalculations, % Opts.ShowDamageCalculations
@@ -8429,6 +8445,8 @@ ReadConfig(ConfigDir = "", ConfigFile = "config.ini")
 
 		Opts.OnlyActiveIfPOEIsFront := IniRead(ConfigPath, "General", "OnlyActiveIfPOEIsFront", Opts.OnlyActiveIfPOEIsFront)
 		Opts.PutResultsOnClipboard := IniRead(ConfigPath, "General", "PutResultsOnClipboard", Opts.PutResultsOnClipboard)
+		Opts.UpdateSkipSelection := IniRead(ConfigPath, "General", "UpdateSkipSelection", Opts.UpdateSkipSelection)
+		Opts.UpdateSkipBackup := IniRead(ConfigPath, "General", "UpdateSkipBackup", Opts.UpdateSkipBackup)
 
 		; Display
 
@@ -8486,6 +8504,8 @@ WriteConfig(ConfigDir = "", ConfigFile = "config.ini")
 
 	IniWrite(Opts.OnlyActiveIfPOEIsFront, ConfigPath, "General", "OnlyActiveIfPOEIsFront")
 	IniWrite(Opts.PutResultsOnClipboard, ConfigPath, "General", "PutResultsOnClipboard")
+	IniWrite(Opts.UpdateSkipSelection, ConfigPath, "General", "UpdateSkipSelection")
+	IniWrite(Opts.UpdateSkipBackup, ConfigPath, "General", "UpdateSkipBackup")
 
 	; Display
 
@@ -8845,11 +8865,14 @@ CheckForUpdates:
 	If (not SkipItemInfoUpdateCall) {
 		globalUpdateInfo.repo := Globals.Get("GithubRepo")
 		globalUpdateInfo.user := Globals.Get("GithubUser")
-		globalUpdateInfo.releaseVersion := Globals.Get("ReleaseVersion")
+		globalUpdateInfo.releaseVersion	:= Globals.Get("ReleaseVersion")
+		globalUpdateInfo.skipSelection	:= Opt.UpdateSkipSelection
+		globalUpdateInfo.skipBackup		:= Opt.UpdateSkipBackup
+		SplashScreenTitle := "PoE-ItemInfo"
 	}
-
+	
 	ShowUpdateNotification := 1
-	hasUpdate := PoEScripts_Update(globalUpdateInfo.user, globalUpdateInfo.repo, globalUpdateInfo.releaseVersion, userDirectory, isDevVersion, ShowUpdateNotification)
+	hasUpdate := PoEScripts_Update(globalUpdateInfo.user, globalUpdateInfo.repo, globalUpdateInfo.releaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, globalUpdateInfo.skipSelection, globalUpdateInfo.skipBackup)
 	If (hasUpdate = "no update" and not firstUpdateCheck) {
 		SplashTextOn, , , No update available
 		Sleep 2000

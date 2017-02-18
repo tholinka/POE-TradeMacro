@@ -3012,7 +3012,7 @@ OverwriteSettingsHeightTimer:
 	o := Globals.Get("SettingsUIHeight")
 
 	If (o) {
-		Globals.Set("SettingsUIHeight", 735)
+		Globals.Set("SettingsUIHeight", 795)
 		SetTimer, OverwriteSettingsHeightTimer, Off
 	}	
 Return
@@ -3062,6 +3062,12 @@ OverwriteSettingsNameTimer:
 		}
 		Menu, Tray, UseErrorLevel, off			
 	}	
+Return
+
+OverwriteUpdateOptionsTimer:	
+	If (InititalizedItemInfoUserOptions) {
+		TradeFunc_SyncUpdateSettings()
+	}
 Return
 
 OpenGithubWikiFromMenu:

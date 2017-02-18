@@ -3,6 +3,7 @@ The following is a list of what has been updated, starting with 1.1.0
 2.0.0
 ================================================================================================
 Added an auto-update function (Button on update window).
+	Added options to skip folder selection and backuping up the install location when updating. 
 Improved the update window.
 Moved config files and AdditionalMacros.txt to <WindowsUserFolder\Documents\PoE-TradeMacro\> (depends on OS Version).
 	These files are only overwritten by script updates if they have to be (and backed up).

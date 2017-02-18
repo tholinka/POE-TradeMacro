@@ -1,12 +1,12 @@
 ﻿#Include, %A_ScriptDir%\lib\JSON.ahk
 #Include, %A_ScriptDir%\lib\zip.ahk
 
-PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle = "") {
-	status := GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle)
+PoEScripts_Update(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, skipSelection, skipBackup, SplashScreenTitle = "") {
+	status := GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, skipSelection, skipBackup, SplashScreenTitle)
 	Return status
 }
 
-GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, SplashScreenTitle = "") {
+GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, skipSelection, skipBackup, SplashScreenTitle = "") {
 	If (ShowUpdateNotification = 0) {
 		return
 	}
@@ -83,7 +83,9 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirecto
 		global updateWindow_DefaultFolder	:= A_ScriptDir
 		global updateWindow_isDevVersion	:= isDevVersion
 		global updateWindow_downloadURL	:= StrLen(downloadURL_asset) ? downloadURL_asset : downloadURL_zip
-		
+		global updateWindow_skipSelection	:= skipSelection
+		global updateWindow_skipBackup	:= skipBackup
+
 		isPrerelease:= LatestRelease.prerelease
 		releaseTag  := LatestRelease.tag_name
 		releaseURL  := downloadUrl . "/tag/" . releaseTag
@@ -278,7 +280,7 @@ GetVersionIdentifierPriority(identifier) {
 	}
 }
 
-UpdateScript(url, project, defaultDir, isDevVersion) {	
+UpdateScript(url, project, defaultDir, isDevVersion, skipSelection, skipBackup) {	
 	prompt := "Please select the folder you want to install/extract " project " to.`n"
 	prompt .= "Selecting an existing folder will ask for confirmation and will back up that folder, for example 'MyFolder_backup'."
 	
@@ -295,12 +297,19 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 		FileCreateDir, %defaultFolder%
 	}
 	
-	FileSelectFolder, InstallPath, *%defaultFolder%, 1, %prompt%
+	If (not skipSelection) {
+		FileSelectFolder, InstallPath, *%defaultFolder%, 1, %prompt%
+	} Else {
+		InstallPath := defaultFolder
+	}
+	
 	If (ErrorLevel) {
 		; dialog canceled, do nothing
+		Return
 	} 
-	Else If (InstallPath = ) {
+	If (InstallPath = ) {
 		MsgBox, You didn't select a folder.
+		Return
 	}	    
 	Else {		
 		; remove created dev folder if unused
@@ -308,7 +317,7 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 			FileRemoveDir, %defaultFolder%, 1
 		}
 		
-		; check if install folder is readonly/temporary or a system folder
+		; check if install folder is readonly/temporary or an invalid location
 		validPath := CheckForValidInstallFolder(InstallPath)
 		If (!validPath) {
 			Return
@@ -316,25 +325,30 @@ UpdateScript(url, project, defaultDir, isDevVersion) {
 
 		; check if install folder is empty 
 		If (not IsEmpty(InstallPath)) {
-			MsgBox, 4,, Folder (%InstallPath%) is not empty, overwrite it after making a backup?
-			IfMsgBox Yes 
-			{			
-				Gui, Cancel
-				; remove backup folder if it already exists
-				If (InStr(FileExist(InstallPath "_backup"), "D")) {
-					FileRemoveDir, %InstallPath%_backup, 1
+			If (not skipBackup) {
+				MsgBox, 4,, Folder (%InstallPath%) is not empty, overwrite it after making a backup?
+				IfMsgBox Yes 
+				{			
+					Gui, Cancel
+					; remove backup folder if it already exists
+					If (InStr(FileExist(InstallPath "_backup"), "D")) {
+						FileRemoveDir, %InstallPath%_backup, 1
+					}
+					FileMoveDir, %InstallPath%, %InstallPath%_backup, R  ; Simple rename.
 				}
-				FileMoveDir, %InstallPath%, %InstallPath%_backup, R  ; Simple rename.
+				IfMsgBox No 
+				{
+					Return
+				}
 			}
-			IfMsgBox No 
-			{
-				Return
+			Else {
+				Gui, Cancel
 			}
 		}
 		Else {		
 			Gui, Cancel
 		}
-
+		
 		savePath := "" ; ByRef
 		If (DownloadRelease(url, project, savePath)) {
 			folderName := ExtractRelease(savePath, project)
@@ -521,5 +535,5 @@ CloseUpdateWindow:
 Return
 
 UpdateScript:
-	UpdateScript(updateWindow_downloadURL, updateWindow_Project, updateWindow_DefaultFolder, updateWindow_isDevVersion)	
+	UpdateScript(updateWindow_downloadURL, updateWindow_Project, updateWindow_DefaultFolder, updateWindow_isDevVersion, updateWindow_skipSelection, updateWindow_skipBackup)	
 Return
