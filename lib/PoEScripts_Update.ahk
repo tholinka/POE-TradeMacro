@@ -92,8 +92,12 @@ GetLatestRelease(user, repo, ReleaseVersion, ShowUpdateNotification, userDirecto
 		
 		newRelease := CompareVersions(versions.latest, versions.current)
 		If (newRelease) {
-			If(SplashScreenTitle) {
-				WinSet, AlwaysOnTop, Off, %SplashScreenTitle%
+			If (SplashScreenTitle) {
+				Try {
+					WinSet, AlwaysOnTop, Off, %SplashScreenTitle%
+				} Catch er {
+					
+				}
 			}
 			Gui, UpdateNotification:Font,, Consolas
 
