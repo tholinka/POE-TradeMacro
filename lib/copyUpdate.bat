@@ -9,7 +9,13 @@ set tempInstallFolder=%5
 :: if the installation of new files fails we don't want to have the script deleted completely
 
 if exist %tempInstallPath% (
-	rd /s /q %tempInstallPath%
+	rd /s /q %tempInstallPath% || rem
+	if %ERRORLEVEL% NEQ 0 (
+		echo.
+		echo rd ERRORLEVEL: %ERRORLEVEL%
+		echo Failed to remove/clear temporary installation folder. 
+		echo.
+	)
 )
 mkdir %tempInstallPath%
 
@@ -42,16 +48,36 @@ if %ERRORLEVEL% EQU 0 set errorL=%ERRORLEVEL% & set error="No Change" & goto End
 
 :SwapInstalls
 :: delete install folder (old script) and rename temp install folder to install folder
-rd /s /q %installPath%
+rd /s /q %installPath% || rem
+if %ERRORLEVEL% NEQ 0 (
+	echo.
+	echo rd ERRORLEVEL: %ERRORLEVEL%
+	echo Failed to remove/clear installation folder. 
+	echo.
+)
+
 dir /b /a %installPath%"\*" | >nul findstr "^" && (set clearInstallDir=0) || set clearInstallDir=1
 if %clearInstallDir% EQU 1 (
 	robocopy %tempInstallPath% %installPath% /E /MOVE
 	if %ERRORLEVEL% NEQ 1 (
+		echo Swap directories, rename/move temp folder to install folder:
+		echo. robocopy ERRORLEVEL: %ERRORLEVEL%
+		echo. temp               : %tempInstallPath%
+		echo. install            : %installPath%
+		echo. 
 		set error="Failed to rename temp install folder to install folder. Using temp install folder to run the script."
 		set errorL=17
 		goto EndScript
 	) else (
-		rd /s /q %tempInstallPath%
+		if exist %tempInstallPath% (
+			rd /s /q %tempInstallPath% || rem
+			if %ERRORLEVEL% NEQ 0 (
+				echo.
+				echo rd ERRORLEVEL: %ERRORLEVEL%
+				echo Cleanup: Failed to clear temporary installation folder. 
+				echo.
+			)
+		)
 	)
 ) else (
 	echo fail
@@ -66,8 +92,9 @@ goto EndScript
 if exist %updateScriptPath% (
 	for /f %%i in ('rd /s /q %updateScriptPath%') do set test=%%i
 )
-echo %error%
-echo %errorL%
+echo ERROR: %error%
+echo ERRORLEVEL: %errorL%
+echo. 
 
 :: write exit code to file
 echo %errorL% >exitCode.txt

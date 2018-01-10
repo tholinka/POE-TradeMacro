@@ -15,6 +15,7 @@ updateScriptPath	= %2%
 installPath		= %3%
 projectName		= %4%
 scriptName		= %5%
+debug			= %6%
 
 Try {
 	RunAsAdmin()
@@ -31,8 +32,13 @@ Try {
 	installFolder		:= RegExReplace(installPath, "(.*\\)")
 	renamedUpdatePath	:= updateParentDir1 "\" installFolder
 	installParentDir	:= installParentDir1
-
-	RunWait, "copyUpdate.bat" "%updateScriptPath%" "%installPath%" "%installFolder%" "%installPath%_tempInstall" "%installFolder%_tempInstall", , hide
+	
+	If (debug) {
+		RunWait, "copyUpdate.bat" "%updateScriptPath%" "%installPath%" "%installFolder%" "%installPath%_tempInstall" "%installFolder%_tempInstall" && pause, , 
+	} Else {
+		RunWait, "copyUpdate.bat" "%updateScriptPath%" "%installPath%" "%installFolder%" "%installPath%_tempInstall" "%installFolder%_tempInstall", , hide
+	}	
+	return
 	If (FileExist("exitCode.txt")) {
 		FileRead, exitCode, exitCode.txt
 		code := ""

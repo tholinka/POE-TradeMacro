@@ -475,7 +475,7 @@ TradeFunc_ScriptUpdate() {
 		ShowUpdateNotification := 1
 	}
 	SplashScreenTitle := "PoE-TradeMacro"
-	PoEScripts_Update(globalUpdateInfo.user, globalUpdateInfo.repo, globalUpdateInfo.releaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, globalUpdateInfo.skipSelection, globalUpdateInfo.skipBackup, SplashScreenTitle)
+	PoEScripts_Update(globalUpdateInfo.user, globalUpdateInfo.repo, globalUpdateInfo.releaseVersion, ShowUpdateNotification, userDirectory, isDevVersion, globalUpdateInfo.skipSelection, globalUpdateInfo.skipBackup, SplashScreenTitle, TradeOpts.Debug)
 }
 
 ;----------------------- Trade Settings UI (added onto ItemInfos Settings UI) ---------------------------------------
