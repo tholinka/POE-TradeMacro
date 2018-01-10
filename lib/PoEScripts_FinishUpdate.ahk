@@ -38,7 +38,7 @@ Try {
 	} Else {
 		RunWait, "copyUpdate.bat" "%updateScriptPath%" "%installPath%" "%installFolder%" "%installPath%_tempInstall" "%installFolder%_tempInstall", , hide
 	}	
-	return
+
 	If (FileExist("exitCode.txt")) {
 		FileRead, exitCode, exitCode.txt
 		code := ""
