@@ -1398,6 +1398,7 @@ TradeFunc_DoPostRequest(payload, openSearchInBrowser = false) {
 
 TradeFunc_DoPoePricesRequest(RawItemData, ByRef retCurl) {
 	EncodedItemData := StringToBase64UriEncoded(RawItemData, true)
+	console.log("encoded data added to request url (length): " StrLen(EncodedItemData))
 	
 	postData 	:= "l=" UriEncode(TradeGlobals.Get("LeagueName")) "&i=" EncodedItemData
 	payLength	:= StrLen(postData)

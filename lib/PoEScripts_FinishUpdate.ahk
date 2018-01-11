@@ -26,7 +26,7 @@ Try {
 		WinClose
 		WinWaitClose, i)%scriptName%.* ahk_class AutoHotkey, , 2		
 	}
-	
+
 	RegExMatch(updateScriptPath, "(.*)\\.*", updateParentDir)
 	RegExMatch(installPath, "(.*)\\.*", installParentDir)
 	installFolder		:= RegExReplace(installPath, "(.*\\)")

@@ -10055,9 +10055,16 @@ StdOutStream(sCmd, Callback = "") {
 }
 
 ReadConsoleOutputFromFile(command, fileName) {
-	file := "temp\" fileName
-	RunWait %comspec% /c "chcp 1251 /f >nul 2>&1 & %command% > %file%", , Hide
+	file := A_ScriptDir "\temp\" fileName
+	RunWait %comspec% /c "chcp 1251 /f >nul 2>&1 & %command% > %file%" && pause, ,
 	FileRead, io, %file%
+	If (ErrorLevel = 1) {
+		console.log("file does not exist: " file)		
+	} Else If (ErrorLevel = 2) {
+		console.log("file is locked or inaccessible" file)
+	} Else If (ErrorLevel = 3) {		
+		console.log("the system lacks sufficient memory to load the file:" file)
+	} 
 
 	Return io
 }
@@ -10468,17 +10475,24 @@ AdvancedItemInfoExt() {
 StringToBase64UriEncoded(stringIn, noUriEncode = false) {
 	stringBase64 := ""
 	FileDelete, %A_ScriptDir%\temp\itemText.txt
-	FileAppend, %stringIn%, %A_ScriptDir%\temp\itemText.txt, utf-8
-	command		:= "certutil -encode -f ""%cd%\temp\itemText.txt"" ""%cd%\temp\base64ItemText.txt"" & type ""%cd%\temp\base64ItemText.txt"""
+	FileAppend, %stringIn%, %A_ScriptDir%\temp\itemText.txt, utf-8	
+	command		:= "certutil -encode -f """ A_ScriptDir "\temp\itemText.txt"" """ A_ScriptDir "\temp\base64ItemText.txt"" & type """ A_ScriptDir "\temp\base64ItemText.txt"""
+	command_old	:= "certutil -encode -f ""%cd%\temp\itemText.txt"" ""%cd%\temp\base64ItemText.txt"" & type ""%cd%\temp\base64ItemText.txt"""
+	console.log(command)
+	console.log(command_old)
 	stringBase64	:= ReadConsoleOutputFromFile(command, "encodeToBase64.txt")
+	console.log("certutil output read from file (length): " StrLen(stringBase64))
+	
 	stringBase64	:= Trim(RegExReplace(stringBase64, "i)-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|77u/", ""))
 	
 	If (not noUriEncode) {
 		stringBase64	:= UriEncode(stringBase64)
 		stringBase64	:= RegExReplace(stringBase64, "i)^(%0D)?(%0A)?|((%0D)?(%0A)?)+$", "")
+		console.log("cleaned base64 encoded string,  URI encode (length): " StrLen(stringBase64))
 	} Else {
-		stringBase64 := RegExReplace(stringBase64, "i)\r|\n", "") 
-	}	
+		stringBase64 := RegExReplace(stringBase64, "i)\r|\n", "")
+		console.log("cleaned base64 encoded string (length): " StrLen(stringBase64))
+	}
 	
 	Return stringBase64
 }
