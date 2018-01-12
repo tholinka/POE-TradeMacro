@@ -22,7 +22,11 @@ If (A_AhkVersion < TradeAHKVersionRequired)
 	MsgBox, 16, Wrong AutoHotkey Version, % TradeMsgWrongAHKVersion
 	ExitApp
 }
-
+If (A_IsAdmin) {
+	Msgbox Runs as admin.
+} Else {
+	Msgbox Runs not as admin.
+}
 Menu, Tray, Icon, %A_ScriptDir%\resources\images\poe-trade-bl.ico
 Menu, Tray, Add, Donate, OpenPayPal
 Menu, Tray, Add, Open Wiki/FAQ, OpenGithubWikiFromMenu
