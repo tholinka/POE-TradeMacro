@@ -93,7 +93,7 @@ FileAppend, %trade%		, %scriptDir%\_TradeMacroMain.ahk
 FileSetAttrib, +H, %scriptDir%\_TradeMacroMain.ahk
 ; pass some parameters to TradeMacroInit
 If (not onlyMergeFiles) {
-	Run "%A_AhkPath%" "%scriptDir%\_TradeMacroMain.ahk" "%projectName%" "%userDirectory%" "%isDevelopmentVersion%" "%overwrittenFiles%" "isMergedScript" "%skipSplash%"
+	Run *RunAs "%A_AhkPath%" "%scriptDir%\_TradeMacroMain.ahk" "%projectName%" "%userDirectory%" "%isDevelopmentVersion%" "%overwrittenFiles%" "isMergedScript" "%skipSplash%"
 }
 
 ExitApp

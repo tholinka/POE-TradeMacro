@@ -10056,8 +10056,9 @@ StdOutStream(sCmd, Callback = "") {
 
 ReadConsoleOutputFromFile(command, fileName) {
 	file := A_ScriptDir "\temp\" fileName
-	RunWait %comspec% /c "chcp 1251 /f >nul 2>&1 & %command% > %file%" && pause, ,
+	RunWait *RunAs %comspec% /c "chcp 1251 /f >nul 2>&1 & %command% > %file%" && pause, ,
 	FileRead, io, %file%
+
 	If (ErrorLevel = 1) {
 		console.log("file does not exist: " file)		
 	} Else If (ErrorLevel = 2) {
@@ -10476,12 +10477,22 @@ StringToBase64UriEncoded(stringIn, noUriEncode = false) {
 	stringBase64 := ""
 	FileDelete, %A_ScriptDir%\temp\itemText.txt
 	FileAppend, %stringIn%, %A_ScriptDir%\temp\itemText.txt, utf-8	
-	command		:= "certutil -encode -f """ A_ScriptDir "\temp\itemText.txt"" """ A_ScriptDir "\temp\base64ItemText.txt"" & type """ A_ScriptDir "\temp\base64ItemText.txt"""
-	command_old	:= "certutil -encode -f ""%cd%\temp\itemText.txt"" ""%cd%\temp\base64ItemText.txt"" & type ""%cd%\temp\base64ItemText.txt"""
-	console.log(command)
-	console.log(command_old)
-	stringBase64	:= ReadConsoleOutputFromFile(command, "encodeToBase64.txt")
+	
+	tool			:= "certutil"
+	command		:= " -encode -f """ A_ScriptDir "\temp\itemText.txt"" """ A_ScriptDir "\temp\base64ItemText.txt"" & type """ A_ScriptDir "\temp\base64ItemText.txt"""
+	commandFinal	:= tool . command
+	console.log(commandFinal)
+	stringBase64	:= ReadConsoleOutputFromFile(commandFinal, "encodeToBase64.txt")
 	console.log("certutil output read from file (length): " StrLen(stringBase64))
+	
+	If (not StrLen(stringBase64) and false) {
+		tool		:= A_WinDir "\system32\certutil.exe"
+		commandFinal	:= tool . command
+		stringBase64	:= ReadConsoleOutputFromFile(commandFinal, "encodeToBase64.txt")
+		console.log("Second try:")	
+		console.log(commandFinal)
+		console.log("certutil output read from file (length): " StrLen(stringBase64))
+	}
 	
 	stringBase64	:= Trim(RegExReplace(stringBase64, "i)-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|77u/", ""))
 	
