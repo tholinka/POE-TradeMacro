@@ -741,27 +741,31 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 		; add Item.subtype to make sure to only find maps
 		RegExMatch(Item.Name, "i)The Beachhead.*", isHarbingerMap)
 		RegExMatch(Item.SubType, "i)Unknown Map", isUnknownMap)
-		If (not isHarbingerMap and not isUnknownMap) {
+		
+		mapTypes := TradeGlobals.Get("ItemTypeList")["Map"]
+		typeFound := TradeUtils.IsInArray(Item.SubType, mapTypes)
+		
+		If (not isHarbingerMap and not isUnknownMap and typeFound) {
 			RequestParams.xbase := Item.SubType
+			RequestParams.xtype := ""
 		} Else {
 			RequestParams.xbase := ""
-		}
-		
-		RequestParams.xtype := ""
+			RequestParams.xtype := "Map"
+		}		
+
 		If (not Item.IsUnique) {
 			If (StrLen(isHarbingerMap)) {
 				; Beachhead Map workaround (unique but not flagged as such on poe.trade)
-				RequestParams.name := Item.Name				
+				RequestParams.name := Item.Name			
+			} Else If (not typeFound) {
+				RequestParams.name := Item.Name
+				RequestParams.level_min := Item.MapTier
+				RequestParams.level_max := Item.MapTier
 			} Else {
 				RequestParams.name := ""
 			}
 		}
-
-		; Ivory Temple fix, not sure why it's not recognized and if there are more cases like it
-		If (InStr(Name, "Ivory Temple")){
-			RequestParams.xbase  := "Ivory Temple Map"
-		}
-		
+	
 		If (StrLen(isUnknownMap)) {
 			RequestParams.xbase := Item.BaseName
 			Item.UsedInSearch.type := Item.BaseName
