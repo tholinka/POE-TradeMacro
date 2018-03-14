@@ -3117,6 +3117,7 @@ TradeFunc_GetNonUniqueModValueGivenPoeTradeMod(itemModifiers, poeTradeMod, ByRef
 	CurrValue	:= ""
 	CurrValues:= []
 	CurrValue := GetActualValue(itemModifiers.name_orig)
+	
 	If (CurrValue ~= "\d+") {
 		; handle value range
 		RegExMatch(CurrValue, "(\d+) ?(-|to) ?(\d+)", values)
@@ -3137,6 +3138,7 @@ TradeFunc_GetNonUniqueModValueGivenPoeTradeMod(itemModifiers, poeTradeMod, ByRef
 		; replace multi spaces with a single one
 		ModStr := RegExReplace(ModStr, " +", " ")
 		poeTradeMod := RegExReplace(poeTradeMod, "# ?to ? #", "#")
+		poeTradeMod := StrReplace(poeTradeMod, "+")
 		
 		If (RegExMatch(poeTradeMod, "i).*" ModStr "$")) {
 			Return CurrValues
@@ -3626,7 +3628,6 @@ TradeFunc_AdvancedPriceCheckGui(advItem, Stats, Sockets, Links, UniqueStats = ""
 				theoreticalMaxValue := advItem.mods[A_Index].ranges[1][2] ? advItem.mods[A_Index].ranges[1][2] : 0
 			}
 		}
-
 		
 		SetFormat, FloatFast, 5.2
 		ErrorMsg :=

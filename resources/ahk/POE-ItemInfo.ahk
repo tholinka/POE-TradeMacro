@@ -8406,8 +8406,8 @@ ModStringToObject(string, isImplicit) {
 	}
 
 	type := ""
-	; Matching "x% fire and cold resistance" or "x% to cold resist", excluding "to maximum cold resistance" and "damage penetrates x% cold resistance"
-	If (RegExMatch(val, "i)to ((cold|fire|lightning)( and (cold|fire|lightning))?) resistance")) {
+	; Matching "x% fire and cold resistance" or "x% to cold resist", excluding "to maximum cold resistance" and "damage penetrates x% cold resistance" and minion/totem related mods
+	If (RegExMatch(val, "i)to ((cold|fire|lightning)( and (cold|fire|lightning))?) resistance") and not RegExMatch(val, "i)Minion|Totem")) {
 		type := "Resistance"
 		If (RegExMatch(val, "i)fire")) {
 			Matches.push("Fire")
@@ -8449,7 +8449,7 @@ ModStringToObject(string, isImplicit) {
 		Matches[A_Index] := match1 ? sign . "#% to " . Matches[A_Index] . " " . match1 : sign . "#" . type . "" . Matches[A_Index]
 	}
 
-	If (RegExMatch(val, "i)to all attributes|to all elemental (Resistances)", match)) {
+	If (RegExMatch(val, "i)to all attributes|to all elemental (Resistances)", match) and not RegExMatch(val, "i)Minion|Totem")) {
 		resist := match1 ? true : false
 		Matches[1] := resist ? "+#% to Fire Resistance" : "+# to Strength"
 		Matches[2] := resist ? "+#% to Lightning Resistance" : "+# to Intelligence"
@@ -8604,12 +8604,12 @@ CreatePseudoMods(mods, returnAllMods := False) {
 
 		; ### Resistances
 		; % to all resistances ( careful about 'max all resistances' )
-		Else If (RegExMatch(mod.name, "i)to all Elemental Resistances$")) {
+		Else If (RegExMatch(mod.name, "i)to all Elemental Resistances$") and not RegExMatch(mod.name, "i)Minion|Totem")) {
 			toAllElementalResist := toAllElementalResist + mod.values[1]
 			mod.simplifiedName := "xToAllElementalResistances"
 		}
 		; % to base resistances
-		Else If (RegExMatch(mod.name, "i)to (Cold|Fire|Lightning|Chaos) Resistance$", resistType)) {
+		Else If (RegExMatch(mod.name, "i)to (Cold|Fire|Lightning|Chaos) Resistance$", resistType) and not RegExMatch(mod.name, "i)Minion|Totem")) {
 			%resistType1%Resist := %resistType1%Resist + mod.values[1]
 			mod.simplifiedName := "xTo" resistType1 "Resistance"
 		}
