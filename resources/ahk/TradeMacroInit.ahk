@@ -1353,7 +1353,7 @@ TradeFunc_TestCloudflareBypass(Url, UserAgent="", cfduid="", cfClearance="", use
 	FileAppend, %html%, %A_ScriptDir%\temp\test.txt, utf-8
 
 	; pathofexile.com link in page footer (forum thread)
-	RegExMatch(html, "i)pathofexile", match)
+	RegExMatch(html, "i)pathofexile|currency\.poe\.trade", match)
 	If (match) {
 		FileDelete, %A_ScriptDir%\temp\poe_trade_search_form_options.txt
 		FileAppend, %html%, %A_ScriptDir%\temp\poe_trade_search_form_options.txt, utf-8
