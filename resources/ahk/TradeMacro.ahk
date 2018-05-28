@@ -194,10 +194,9 @@ TradeFunc_OpenWikiHotkey(priceCheckTest = false, itemData = "") {
 			} Else If (RegExMatch(Item.Name, "i)Sacrifice At") or RegExMatch(Item.Name, "i)Fragment of") or RegExMatch(Item.Name, "i)Mortal ") or RegExMatch(Item.Name, "i)Offering to ") or RegExMatch(Item.Name, "i)'s Key") or RegExMatch(Item.Name, "i)Breachstone")) {
 				UrlAffix := Item.Name
 			} Else {
-				UrlAffix := Item.BaseType
+				UrlAffix := Item.BaseName
 			}
-		}
-		
+		}		
 
 		If (StrLen(UrlAffix) > 0) {
 			If (TradeOpts.WikiAlternative) {
