@@ -1289,17 +1289,31 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 		
 		; add second request for payload_alt (exact currency search fallback request)		
 		searchResults := TradeFunc_ParseHtmlToObj(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
-		If (not searchResults.results and StrLen(Payload_alt)) {
-			Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
-			ParsedData := TradeFunc_ParseHtml(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+		debugprintarray([Opts.UseAdvancedToolTip, searchResults, Item])
+		If (not Opts.UseAdvancedToolTip) {
+			console.log("default")
+			If (not searchResults.results and StrLen(Payload_alt)) {
+				Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
+				ParsedData := TradeFunc_ParseHtml(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+			}
+			Else {
+				ParsedData := TradeFunc_ParseHtml(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)	
+			}
 		}
 		Else {
-			ParsedData := TradeFunc_ParseHtml(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)	
-		}		
-
-		SetClipboardContents("")
-		ShowToolTip("")
-		ShowToolTip(ParsedData)
+			console.log("new")
+			If (not searchResults.results and StrLen(Payload_alt)) {
+				Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
+				searchResults := TradeFunc_ParseHtmlToObj(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+				ParsedData := TradeFunc_ParseHtml(searchResults, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+			}
+			Else {
+				ParsedData := TradeFunc_ParseHtml(searchResults, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)	
+			}
+		}
+		;SetClipboardContents("")
+		;ShowToolTip("")
+		;ShowToolTip(ParsedData)
 	}
 
 	TradeGlobals.Set("AdvancedPriceCheckItem", {})
@@ -2270,7 +2284,7 @@ TradeFunc_ParseAlternativeCurrencySearch(name, payload) {
 }
 
 ; Calculate average and median price of X listings
-TradeFunc_GetMeanMedianPrice(html, payload, ByRef errorMsg = "") {
+TradeFunc_GetMeanMedianPrice(html, payload, ByRef errorMsg = "", returnObj = false) {
 	itemCount := 1
 	prices := []
 	average := 0
@@ -2378,7 +2392,7 @@ TradeFunc_GetMeanMedianPrice(html, payload, ByRef errorMsg = "") {
 		desc2 := "Trimmed Mean (" trimPercent "%):"
 		desc3 := "Median price: "
 		dlength := (dlength > StrLen(desc2)) ? StrLen(desc1) : StrLen(desc2)
-		dlength := (dlength > StrLen(desc3)) ? dlength : StrLen(desc3)		
+		dlength := (dlength > StrLen(desc3)) ? dlength : StrLen(desc3)
 		
 		Title .= StrPad(desc1, dlength, "right") StrPad(average, length, "left") " chaos (" prices.MaxIndex() " results"
 		Title .= (NoOfItemsSkipped > 0) ? ", " NoOfItemsSkipped " removed by Acc. Filter" : ""
@@ -2393,7 +2407,19 @@ TradeFunc_GetMeanMedianPrice(html, payload, ByRef errorMsg = "") {
 		Title .= ") `n`n"
 	}
 	
-	Return Title
+	If (returnObj) {
+		obj := {}
+		obj.median := median
+		obj.average := average
+		obj.trimmedMean := truncMean
+		obj.results := prices.MaxIndex()
+		obj.skipped := NoOfItemsSkipped
+		
+		Return obj
+	} 
+	Else {
+		Return Title	
+	}
 }
 
 TradeFunc_MapCurrencyPoeTradeNameToIngameName(CurrencyName) {
@@ -2524,9 +2550,34 @@ TradeFunc_ParseHtmlToObj(html, payload, iLvl = "", ench = "", isItemAgeRequest =
 	Return data
 }
 
+; Parse poe.trade html to display the search result tooltip with X listings
+TradeFunc_ParseHtml(data, payload, iLvl = "", ench = "", isItemAgeRequest = false, isAdvancedSearch = false) {
+	Global Item, ItemData, TradeOpts, Opts
+	LeagueName := TradeGlobals.Get("LeagueName")
+
+	If (not Opts.UseAdvancedToolTip or not IsObject(data)) {
+		console.log(old)
+		TradeFunc_ParseHtml_old(data, payload, iLvl, ench, isItemAgeRequest, isAdvancedSearch)
+		Return
+	}
+
+	; add average and median prices to title
+	If (not isItemAgeRequest) {
+		statistics := TradeFunc_GetMeanMedianPrice(html, payload, error, true)		
+	}
+
+	AdvTT.CreateGui()
+	
+	debugprintarray(data)
+	For key, val in data {
+		
+	}
+	
+	Return
+}
 
 ; Parse poe.trade html to display the search result tooltip with X listings
-TradeFunc_ParseHtml(html, payload, iLvl = "", ench = "", isItemAgeRequest = false, isAdvancedSearch = false) {
+TradeFunc_ParseHtml_old(html, payload, iLvl = "", ench = "", isItemAgeRequest = false, isAdvancedSearch = false) {
 	Global Item, ItemData, TradeOpts
 	LeagueName := TradeGlobals.Get("LeagueName")
 
@@ -2774,6 +2825,10 @@ TradeFunc_ParseHtml(html, payload, iLvl = "", ench = "", isItemAgeRequest = fals
 	}
 	Title .= (itemsListed > 0) ? "" : "`nNo item found.`n"
 	Title .= (isAdvancedSearch) ? "" : "`n`n" "Use Ctrl + Alt + D (default) instead for a more thorough search."
+
+	SetClipboardContents("")
+	ShowToolTip("")
+	ShowToolTip(Title)
 
 	Return, Title
 }

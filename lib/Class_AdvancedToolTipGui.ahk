@@ -10,7 +10,6 @@
 ; EXAMPLE CODE
 
 #SingleInstance,force
-#Include, %A_ScriptDir%\DebugPrintArray.ahk
 
 GroupAdd, PoEWindowGrp, Path of Exile ahk_class POEWindowClass ahk_exe PathOfExile.exe
 GroupAdd, PoEWindowGrp, Path of Exile ahk_class POEWindowClass ahk_exe PathOfExileSteam.exe
@@ -25,7 +24,6 @@ AdvTT := new AdvancedToolTipGui("", "", "", "", "", "Verdana", 8)
 Return
 
 ^XButton1::
-
 	; test data
 
 	item := {}
