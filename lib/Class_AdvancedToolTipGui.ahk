@@ -5,6 +5,10 @@
 ; Class Function:
 ;	Advanced ToolTip for table-like contents using a GUI.
 
+
+/*
+; EXAMPLE CODE
+
 #SingleInstance,force
 #Include, %A_ScriptDir%\DebugPrintArray.ahk
 
@@ -13,17 +17,17 @@ GroupAdd, PoEWindowGrp, Path of Exile ahk_class POEWindowClass ahk_exe PathOfExi
 GroupAdd, PoEWindowGrp, Path of Exile ahk_class POEWindowClass ahk_exe PathOfExile_x64.exe
 GroupAdd, PoEWindowGrp, Path of Exile ahk_class POEWindowClass ahk_exe PathOfExile_x64Steam.exe
 
-/*
-	init tooltip gui, don't do this for every tooltip call
-*/
+
+; init tooltip gui, don't do this for every tooltip call
+
 AdvTT := new AdvancedToolTipGui("", "", "", "", "", "Verdana", 8)
 
 Return
 
 ^XButton1::
-	/*
-		test data
-	*/
+
+	; test data
+
 	item := {}
 	item.name := "Gloom Bite"
 	item.basetype := "Ceremonial Axe"
@@ -38,14 +42,14 @@ Return
 	item.dps.qphys := 162.3
 	item.dps.qtotal := 198.3
 
-	/*
-		create tooltip gui
-	*/
+	
+	; create tooltip gui
+	
 	AdvTT.CreateGui()
 
-	/*
-		add tables/content to the tooltip
-	*/
+	
+	; add tables/content to the tooltip
+	
 	;-------------- table 01 ------------------------------------------------------------	
 	AdvTT.AddTable(-1, "", "FEFEFE", false)
 
@@ -66,7 +70,7 @@ Return
 	AdvTT.AddCell(2, 2, 3,  "", "", "", "", true, "", "")
 	AdvTT.AddCell(2, 2, 4,  "")
 	AdvTT.AddCell(2, 2, 5,  "")
-		
+	
 	AdvTT.AddCell(2, 3, 1,  "Ele DPS:", "", "", "", true, "", "")
 	AdvTT.AddCell(2, 3, 2,  item.dps.ele, "right", "", "", true, "", "")
 	AdvTT.AddCell(2, 3, 3,  "", "", "", "", true, "", "")
@@ -106,20 +110,21 @@ Return
 	multilineText .= "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ut ex arcu.`nMaecenas elit dui, ullamcorper tempus cursus eu, gravida eu lacus, `nMaecenas elit dui, ullamcorper tempus cursus eu, gravida eu lacus."
 	AdvTT.AddCell(4, 1, 1,  multilineText, "", "", "", true, "", "")	
 
-	/*
-		draw tables onto the tooltip gui
-	*/
+	
+	; draw tables onto the tooltip gui
+	
 	AdvTT.DrawTables()
-
-	/*
-		auto-size, position and show the tooltip
-		(or set absolute position)
-	*/
+	
+	; auto-size, position and show the tooltip
+	; (or set absolute position)
+	
 	AdvTT.ShowToolTip()
 Return
 
 GuiClose:
 ExitApp
+
+*/
 
 class AdvancedToolTipGui
 {
