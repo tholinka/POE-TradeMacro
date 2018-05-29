@@ -2350,10 +2350,9 @@ TradeFunc_GetMeanMedianPrice(html, payload, ByRef errorMsg = "") {
 				continue
 			}
 			avg += prices[A_Index]
-			avgCount++	
+			avgCount++
 		}
 		truncMean := Round(avg / avgCount, 2)
-		console.log("avg: " average ", top: " topTrim ", bottom: " bottomTrim ", avg: " avg ", count: " avgCount ", mean: " truncMean)
 		
 		; median		
 		If (prices.MaxIndex()&1) {
