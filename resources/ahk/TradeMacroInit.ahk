@@ -3,6 +3,7 @@
 #SingleInstance force
 #NoEnv ; Recommended for performance and compatibility with future AutoHotkey releases.
 #Persistent ; Stay open in background
+#MaxHotkeysPerInterval 1000
 
 ;#Warn, ALL, OutputDebug
 ;#Warn, UseUnsetGlobal, Off
