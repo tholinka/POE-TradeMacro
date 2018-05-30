@@ -1287,19 +1287,31 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 			Item.UsedInSearch.SearchType := "Default"
 		}
 		
-		; add second request for payload_alt (exact currency search fallback request)		
 		searchResults := TradeFunc_ParseHtmlToObj(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
-		If (not searchResults.results and StrLen(Payload_alt)) {
-			Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
-			ParsedData := TradeFunc_ParseHtml(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+		If (not Opts.UseAdvancedToolTip) {
+			console.log("default")
+			If (not searchResults.results and StrLen(Payload_alt)) {
+				Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
+				ParsedData := TradeFunc_ParseHtml(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+			}
+			Else {
+				ParsedData := TradeFunc_ParseHtml(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)	
+			}
 		}
 		Else {
-			ParsedData := TradeFunc_ParseHtml(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)	
-		}		
-
-		SetClipboardContents("")
-		ShowToolTip("")
-		ShowToolTip(ParsedData)
+			console.log("new")
+			If (not searchResults.results and StrLen(Payload_alt)) {
+				Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
+				searchResults := TradeFunc_ParseHtmlToObj(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+				ParsedData := TradeFunc_ParseHtml(searchResults, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+			}
+			Else {
+				ParsedData := TradeFunc_ParseHtml(searchResults, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)	
+			}
+		}
+		;SetClipboardContents("")
+		;ShowToolTip("")
+		;ShowToolTip(ParsedData)
 	}
 
 	TradeGlobals.Set("AdvancedPriceCheckItem", {})
@@ -2270,7 +2282,7 @@ TradeFunc_ParseAlternativeCurrencySearch(name, payload) {
 }
 
 ; Calculate average and median price of X listings
-TradeFunc_GetMeanMedianPrice(html, payload, ByRef errorMsg = "") {
+TradeFunc_GetMeanMedianPrice(html, payload, ByRef errorMsg = "", returnObj = false) {
 	itemCount := 1
 	prices := []
 	average := 0
@@ -2393,7 +2405,19 @@ TradeFunc_GetMeanMedianPrice(html, payload, ByRef errorMsg = "") {
 		Title .= ") `n`n"
 	}
 	
-	Return Title
+	If (returnObj) {
+		obj := {}
+		obj.median := median
+		obj.average := average
+		obj.trimmedMean := truncMean
+		obj.results := prices.MaxIndex()
+		obj.skipped := NoOfItemsSkipped
+	
+		Return obj
+	} 
+	Else {
+		Return Title	
+	}
 }
 
 TradeFunc_MapCurrencyPoeTradeNameToIngameName(CurrencyName) {
@@ -2524,9 +2548,170 @@ TradeFunc_ParseHtmlToObj(html, payload, iLvl = "", ench = "", isItemAgeRequest =
 	Return data
 }
 
+TradeFunc_ParseHtml(data, payload, iLvl = "", ench = "", isItemAgeRequest = false, isAdvancedSearch = false) {
+	Global Item, ItemData, TradeOpts, Opts
+	LeagueName := TradeGlobals.Get("LeagueName")
+
+	If (not Opts.UseAdvancedToolTip or not IsObject(data)) {
+		ParsedData := TradeFunc_ParseHtml_old(data, payload, iLvl, ench, isItemAgeRequest, isAdvancedSearch)
+		SetClipboardContents("")
+		ShowToolTip("")
+		ShowToolTip(ParsedData)
+		Return
+	}
+
+	; add average and median prices to title
+	If (not isItemAgeRequest) {
+		statistics := TradeFunc_GetMeanMedianPrice(html, payload, error, true)		
+	}
+
+	AdvTT.CreateGui()
+	
+	
+	If (not Item.IsGem and not Item.IsDivinationCard and not Item.IsJewel and not Item.IsCurrency and not Item.IsMap) {
+		showItemLevel := true
+	}
+
+	NamePlate := (Item.IsRare and not Item.IsMap) ? Item.Name " " Item.BaseName : Item.Name
+	NamePlate := Trim(StrReplace(NamePlate, "Superior", ""))
+
+	If (Item.IsMap and !Item.isUnique) {
+		temp := ""
+		; map fix (wrong Item.name on magic/rare maps)
+		newName := Trim(StrReplace(Item.Name, "Superior", ""))
+		; prevent duplicate name on white and magic maps
+		If (newName != Item.SubType) {
+			s := Trim(RegExReplace(Item.Name, "Superior", ""))
+			s := Trim(StrReplace(s, Item.SubType, ""))
+			temp .= "(" RegExReplace(s, " +", " ") ") "
+		}
+		temp .= Trim(StrReplace(Item.SubType, "Superior", ""))		
+		NamePlate := temp
+	}
+
+	; add corrupted tag
+	If (Item.IsCorrupted) {
+		NamePlate .= " [Corrupted] "
+	}
+	
+	; add gem quality and level
+	If (Item.IsGem) {
+		NamePlate := Item.Name ", Q" Item.Quality "%"
+		If (Item.Level >= 16) {
+			NamePlate := Item.Name ", " Item.Level "`/" Item.Quality "%"
+		}
+	}
+	; add item sockets and links
+	If (ItemData.Sockets >= 5) {
+		NamePlate .= " " ItemData.Sockets "s" ItemData.Links "l"
+	}
+	If (showItemLevel) {
+		NamePlate .= ", iLvl: " iLvl
+	}
+
+	NamePlate .= ", (" LeagueName ")"
+	console.log(NamePlate)
+	
+	; add notes what parameters where used in the search
+	ShowFullNameNote := false
+	If (not Item.IsUnique and not Item.IsGem and not Item.IsDivinationCard) {
+		ShowFullNameNote := true
+	}
+
+	usedInSearch := ""
+	If (Item.UsedInSearch) {
+		If (isItemAgeRequest) {
+			usedInSearch .= Item.UsedInSearch.SearchType
+		}
+		Else {
+			usedInSearch .= "Used in " . Item.UsedInSearch.SearchType . " Search: "
+			usedInSearch .= (Item.UsedInSearch.Enchantment)  ? "Enchantment " : ""
+			usedInSearch .= (Item.UsedInSearch.CorruptedMod) ? "Corr. Implicit " : ""
+			usedInSearch .= (Item.UsedInSearch.Sockets)      ? "| " . Item.UsedInSearch.Sockets . "S " : ""
+			usedInSearch .= (Item.UsedInSearch.Links)        ? "| " . Item.UsedInSearch.Links   . "L " : ""
+			If (Item.UsedInSearch.iLvl.min and Item.UsedInSearch.iLvl.max) {
+				usedInSearch .= "| iLvl (" . Item.UsedInSearch.iLvl.min . "-" . Item.UsedInSearch.iLvl.max . ")"
+			}
+			Else {
+				usedInSearch .= (Item.UsedInSearch.iLvl.min) ? "| iLvl (>=" . Item.UsedInSearch.iLvl.min . ") " : ""
+				usedInSearch .= (Item.UsedInSearch.iLvl.max) ? "| iLvl (<=" . Item.UsedInSearch.iLvl.max . ") " : ""
+			}
+
+			usedInSearch .= (Item.UsedInSearch.FullName and ShowFullNameNote) ? "| Full Name " : ""
+			usedInSearch .= (Item.UsedInSearch.BeastBase and ShowFullNameNote) ? "| Beast Base " : ""
+			usedInSearch .= (Item.UsedInSearch.Rarity) ? "(" Item.UsedInSearch.Rarity ") " : ""
+			usedInSearch .= (Item.UsedInSearch.Corruption and not Item.IsMapFragment and not Item.IsDivinationCard and not Item.IsCurrency)   ? "| Corrupted (" . Item.UsedInSearch.Corruption . ") " : ""
+			usedInSearch .= (Item.UsedInSearch.ItemXP) ?  "| XP (>= 70%) " : ""
+			usedInSearch .= (Item.UsedInSearch.Type) ? "| Type (" . Item.UsedInSearch.Type . ") " : ""
+			usedInSearch .= (Item.UsedInSearch.abyssJewel) ? "| Abyss Jewel " : ""
+			usedInSearch .= (Item.UsedInSearch.ItemBase and ShowFullNameNote) ? "| Base (" . Item.UsedInSearch.ItemBase . ") " : ""
+			usedInSearch .= (Item.UsedInSearch.specialBase) ? "| " . Item.UsedInSearch.specialBase . " Base " : ""
+			usedInSearch .= (Item.UsedInSearch.Charges) ? "`n" . Item.UsedInSearch.Charges . " " : ""
+			usedInSearch .= (Item.UsedInSearch.AreaMonsterLvl) ? "| " . Item.UsedInSearch.AreaMonsterLvl . " " : ""
+			
+			If (Item.IsBeast and not Item.IsUnique) {
+				usedInSearch .= (Item.UsedInSearch.SearchType = "Default") ? "`n" . "!! Added special bestiary mods to the search !!" : ""	
+			} Else {
+				usedInSearch .= (Item.UsedInSearch.SearchType = "Default") ? "`n" . "!! Mod rolls are being ignored !!" : ""
+				If (Item.UsedInSearch.ExactCurrency) {
+					usedInSearch .= "`n" . "!! Using exact currency option !!"
+				}
+			}
+		}
+		console.log(usedInSearch)
+	}
+
+	;-------------- table 01 ------------------------------------------------------------
+	AdvTT.AddTable(-1, "", "FEFEFE", "innerGrid")	
+
+	AdvTT.AddCell(1, 1, 1, NamePlate, "", "", "", true, "", "")
+	AdvTT.AddCell(1, 2, 1, usedInSearch, "", "", "", true, "", "")
+
+	NoOfItemsToShow := TradeOpts.ShowItemResults
+	
+	;-------------- table 02 ------------------------------------------------------------
+	; add table headers to tooltip
+	Title .= TradeFunc_ShowAcc(StrPad("Account",12), "|")
+	Title .= StrPad("IGN",20)
+	Title .= StrPad(StrPad("| Price ", 19, "right") . "|",20,"left")
+	
+	AdvTT.AddTable(-1, "", "FEFEFE", "innerGrid")
+	
+	columnIndexInc := TradeOpts.ShowAccountName ? 1 : 0
+	
+	If (TradeOpts.ShowAccountName) {
+		AdvTT.AddCell(2, 1, 1, "Account", "", "bold", "", true, "", "")
+	}	
+	AdvTT.AddCell(2, 1, 1 + columnIndexInc, "IGN", "", "bold", "", true, "", "")
+	AdvTT.AddCell(2, 1, 2 + columnIndexInc, "Price", "", "bold", "", true, "", "")
+
+	If (Item.IsGem) {
+		; add gem headers
+		AdvTT.AddCell(2, 1, 3 + columnIndexInc,  "Q.", "", "bold", "", true, "", "")
+		AdvTT.AddCell(2, 1, 4 + columnIndexInc,  "Lvl", "", "bold", "", true, "", "")
+		AdvTT.AddCell(2, 1, 5 + columnIndexInc,  "Xp", "", "bold", "", true, "", "")
+		AdvTT.AddCell(2, 1, 6 + columnIndexInc,  "Age", "", "bold", "", true, "", "")	
+	}
+	Else If (showItemLevel) {
+		; add ilvl
+		AdvTT.AddCell(2, 1, 3 + columnIndexInc,  "iLvl", "", "bold", "", true, "", "")
+		AdvTT.AddCell(2, 1, 4 + columnIndexInc,  "Age", "", "bold", "", true, "", "")
+	}
+	
+	;debugprintarray(data)
+	For key, val in data {
+		
+	}
+	
+	;debugprintarray(AdvTT.tables)
+	AdvTT.DrawTables()
+	AdvTT.ShowToolTip()
+	
+	Return
+}
 
 ; Parse poe.trade html to display the search result tooltip with X listings
-TradeFunc_ParseHtml(html, payload, iLvl = "", ench = "", isItemAgeRequest = false, isAdvancedSearch = false) {
+TradeFunc_ParseHtml_old(html, payload, iLvl = "", ench = "", isItemAgeRequest = false, isAdvancedSearch = false) {
 	Global Item, ItemData, TradeOpts
 	LeagueName := TradeGlobals.Get("LeagueName")
 
@@ -2915,7 +3100,7 @@ TradeFunc_TrimNames(name, length, addDots) {
 	Return s
 }
 
-; Add sellers accountname to string If that option is selected
+; Add sellers accountname to string if that option is selected
 TradeFunc_ShowAcc(s, addString) {
 	If (TradeOpts.ShowAccountName = 1) {
 		s .= addString

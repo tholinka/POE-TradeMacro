@@ -606,7 +606,7 @@ class AdvancedToolTipGui
 	; Returns:
 	;			Nothing. Sets/changes global tables array (this.tables).
 	; ==================================================================================================================================
-	AddTable(fontSize = -1, font = "", color = "Default", grid = "fullGrid", guiMargin = 5, topMargin = 0, tableXPos = "", tableYPos = "", assocVar = "") {				
+	AddTable(fontSize = -1, font = "", color = "Default", grid = "fullGrid", guiMargin = 5, topMargin = 0, tableXPos = "", tableYPos = "", assocVar = "") {			
 		table := {}
 		If (assocVar) {
 			table.assocVar := "v" assocVar
