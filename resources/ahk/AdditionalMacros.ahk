@@ -125,6 +125,7 @@ Return
 
 AM_Remaining_HKey:
 	SendInput {Enter}/remaining{Enter}			; Mobs remaining with F9.
+        SendInput {Enter}/oos{Enter}
 Return
 
 AM_JoinChannel_HKey:
