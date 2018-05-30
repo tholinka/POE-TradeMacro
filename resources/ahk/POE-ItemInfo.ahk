@@ -23,6 +23,7 @@ GroupAdd, PoEWindowGrp, Path of Exile ahk_class POEWindowClass ahk_exe PathOfExi
 #Include, %A_ScriptDir%\lib\ConvertKeyToKeyCode.ahk
 #Include, %A_ScriptDir%\lib\Class_GdipTooltip.ahk
 #Include, %A_ScriptDir%\lib\Class_ColorPicker.ahk
+#Include, %A_ScriptDir%\lib\Class_AdvancedToolTipGui.ahk
 #Include, %A_ScriptDir%\lib\AdvancedHotkey.ahk
 IfNotExist, %A_ScriptDir%\temp
 FileCreateDir, %A_ScriptDir%\temp
@@ -159,6 +160,8 @@ class ItemInfoOptions extends UserOptions {
 	
 	; Set this to 1 to enable GDI+ rendering
 	UseGDI := 0
+	
+	UseAdvancedToolTip := 1
 
 	; Format: RRGGBB
 	GDIWindowColor			:= "000000"
@@ -455,7 +458,7 @@ If (StrLen(overwrittenUserFiles)) {
 GoSub, AM_AssignHotkeys
 GoSub, FetchCurrencyData
 GoSub, InitGDITooltip
-
+GoSub, InitAdvancedToolTip
 
 /*
 	Item data translation, won't be used for now.
@@ -9638,7 +9641,7 @@ CreateSettingsUI()
 	GuiAddButton("Preview", "xs210 ys290 w80 h23", "SettingsUI_BtnGDIPreviewTooltip", "BtnGDIPreviewTooltip", "BtnGDIPreviewTooltipH")
 
 	; Tooltip
-	GuiAddGroupBox("Tooltip", "x327 ym" 30 " w310 h140 Section")
+	GuiAddGroupBox("Tooltip", "x327 ym" 30 " w310 h170 Section")
 
 	GuiAddEdit(Opts.MouseMoveThreshold, "xs250 yp+22 w50 h20 Number", "MouseMoveThreshold", "MouseMoveThresholdH")
 	GuiAddText("Mouse move threshold (px):", "xs27 yp+3 w200 h20 0x0100", "LblMouseMoveThreshold", "LblMouseMoveThresholdH")
@@ -9653,11 +9656,13 @@ CreateSettingsUI()
 		GuiAddEdit(Opts.ScreenOffsetX, "xs50 yp+22 w50", "ScreenOffsetX")
 		GuiAddEdit(Opts.ScreenOffsetY, "xs130 yp+0 w50", "ScreenOffsetY")
 		GuiAddText("X", "xs35 yp+3 w15", "LblScreenOffsetX")
-		GuiAddText("Y", "xs115 yp+0 w15", "LblScreenOffsetY")
-	
+		GuiAddText("Y", "xs115 yp+0 w15", "LblScreenOffsetY")	
+		
+	GuiAddCheckbox("Use advanced Tooltip", "xs10 yp+30 w280", Opts.UseAdvancedToolTip, "UseAdvancedToolTip", "UseAdvancedToolTipH")
+	AddToolTip(UseAdvancedToolTipH, "")
 	
 	; Display	
-	GuiAddGroupBox("Display", "x327 ym+" 180 " w310 h295 Section")
+	GuiAddGroupBox("Display", "x327 ym+" 210 " w310 h295 Section")
 	
 	GuiAddCheckbox("Show header for affix overview", "xs10 yp+20 w260 h30", Opts.ShowHeaderForAffixOverview, "ShowHeaderForAffixOverview", "ShowHeaderForAffixOverviewH")
 	AddToolTip(ShowHeaderForAffixOverviewH, "Include a header above the affix overview:`n   TierRange ilvl   Total ilvl  Tier")
@@ -9828,6 +9833,7 @@ UpdateSettingsUI()
 		GuiControl, Enable, ToolTipTimeoutSeconds
 	}
 	GuiControl,, ToolTipTimeoutSeconds, % Opts.ToolTipTimeoutSeconds
+	GuiControl,, UseAdvancedToolTip, % Opts.UseAdvancedToolTip
 		
 	GuiControl,, DisplayToolTipAtFixedCoords, % Opts.DisplayToolTipAtFixedCoords
 	If (Opts.DisplayToolTipAtFixedCoords == False)
@@ -10040,6 +10046,7 @@ ReadConfig(ConfigDir = "", ConfigFile = "config.ini")
 		Opts.UseTooltipTimeout	:= IniRead("Tooltip", "UseTooltipTimeout", Opts.UseTooltipTimeout, ItemInfoConfigObj)
 		Opts.ToolTipTimeoutSeconds		:= IniRead("Tooltip", "ToolTipTimeoutSeconds", Opts.ToolTipTimeoutSeconds, ItemInfoConfigObj)
 		Opts.DisplayToolTipAtFixedCoords 	:= IniRead("Tooltip", "DisplayToolTipAtFixedCoords", Opts.DisplayToolTipAtFixedCoords, ItemInfoConfigObj)
+		Opts.UseAdvancedToolTip 	:= IniRead("Tooltip", "UseAdvancedToolTip", Opts.UseAdvancedToolTip, ItemInfoConfigObj)
 		Opts.ScreenOffsetX		:= IniRead("Tooltip", "ScreenOffsetX", Opts.ScreenOffsetX, ItemInfoConfigObj)
 		Opts.ScreenOffsetY		:= IniRead("Tooltip", "ScreenOffsetY", Opts.ScreenOffsetY, ItemInfoConfigObj)
 		
@@ -10112,6 +10119,7 @@ WriteConfig(ConfigDir = "", ConfigFile = "config.ini")
 	IniWrite(Opts.MouseMoveThreshold, "Tooltip", "MouseMoveThreshold", ItemInfoConfigObj)
 	IniWrite(Opts.UseTooltipTimeout, "Tooltip", "UseTooltipTimeout", ItemInfoConfigObj)
 	IniWrite(Opts.ToolTipTimeoutSeconds, "Tooltip", "ToolTipTimeoutSeconds", ItemInfoConfigObj)
+	IniWrite(Opts.UseAdvancedToolTip, "Tooltip", "UseAdvancedToolTip", ItemInfoConfigObj)
 	IniWrite(Opts.DisplayToolTipAtFixedCoords, "Tooltip", "DisplayToolTipAtFixedCoords", ItemInfoConfigObj)
 	IniWrite(Opts.ScreenOffsetX, "Tooltip", "ScreenOffsetX", ItemInfoConfigObj)
 	IniWrite(Opts.ScreenOffsetY, "Tooltip", "ScreenOffsetY", ItemInfoConfigObj)
@@ -11103,6 +11111,14 @@ InitGDITooltip:
 	; some users experience FPS drops when gdi tooltip is initialized.
 	If (Opts.UseGDI) {
 		global gdipTooltip = new GdipTooltip(2, 8,,,[Opts.GDIWindowOpacity, Opts.GDIWindowColor, 10],[Opts.GDIBorderOpacity, Opts.GDIBorderColor, 10],[Opts.GDITextOpacity, Opts.GDITextColor, 10],true, Opts.RenderingFix, -0.3)
+	}
+	return
+	
+InitAdvancedToolTip:
+	Global Opts
+	; some users experience FPS drops when gdi tooltip is initialized.
+	If (Opts.UseAdvancedToolTip) {
+		global AdvTT := new AdvancedToolTipGui("", "", "", "", "", "Verdana", 8)
 	}
 	return
 
