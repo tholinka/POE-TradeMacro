@@ -2704,10 +2704,38 @@ TradeFunc_ParseHtml(data, payload, iLvl = "", ench = "", isItemAgeRequest = fals
 	}
 	
 	;debugprintarray(AdvTT.tables)
-	AdvTT.DrawTables()
-	AdvTT.ShowToolTip()
+	;debugprintarray(AdvTT)
+	TradeFunc_CallToolTip(AdvTT)
+	;AdvTT.DrawTables()
+	;AdvTT.ShowToolTip()
 	
 	Return
+}
+
+TradeFunc_CallToolTip(obj) {
+	dumpObj := JSON.Dump(obj)
+	file := A_ScriptDir "\temp\advtooltip.json"
+	FileDelete, %file% 
+	FileAppend, %dumpObj%, %file%
+
+	; wait unitl the file write is completed
+	loops := 0
+	error := false
+	Loop {
+		loops++
+		ErrorLevel := 0
+		FileMove, %file%, %file% ; renames the file to the same file name
+		If (!ErrorLevel and FileExist(file)) {  ; if ErrorLevel = 0 the file write is complete
+			Break
+		}
+		If (loops > 100) {
+			error := true
+			Break
+		}
+		Sleep, 50  ; kill some time before checking again
+	}
+	
+	Run, %A_ScriptDir%\lib\PoEScripts_AdvancedToolTip.ahk
 }
 
 ; Parse poe.trade html to display the search result tooltip with X listings
