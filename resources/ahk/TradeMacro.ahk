@@ -2501,12 +2501,12 @@ TradeFunc_ParseHtmlToObj(html, payload, iLvl = "", ench = "", isItemAgeRequest =
 			; get gem quality, level and xp
 			RegExMatch(ItemBlock, "i)data-name=""progress"".*<b>\s?(\d+)\/(\d+)\s?<\/b>", GemXP_Flat)
 			RegExMatch(ItemBlock, "i)data-name=""progress"">\s*?Experience:.*?([0-9.]+)\s?%", GemXP_Percent)
-			Pos := RegExMatch(ItemBlock, "i)data-name=""q"".*?data-value=""(.*?)""", Q, Pos)
-			Pos := RegExMatch(ItemBlock, "i)data-name=""level"".*?data-value=""(.*?)""", LVL, Pos)
-			
+			RegExMatch(ItemBlock, "i)data-name=""q"".*?data-value=""(.*?)""", Q)
+			RegExMatch(ItemBlock, "i)data-name=""level"".*?data-value=""(.*?)""", LVL)
+
 			result.gemData := {}
-			result.gemData.xpFlat := GemXP_Flat1
-			result.gemData.xpPercent := GemXP_Percent1
+			result.gemData.xpFlat := (GemXP_Flat1 > 0) ? GemXP_Flat1 : 0
+			result.gemData.xpPercent := (GemXP_Percent1 > 0) ? GemXP_Percent1 : 0
 			result.gemData.quality := Q1
 			result.gemData.level := LVL1
 		}
@@ -2689,7 +2689,7 @@ TradeFunc_ParseHtml(data, payload, iLvl = "", ench = "", isItemAgeRequest = fals
 		; add gem headers
 		AdvTT.AddCell(2, 1, 3 + columnIndexInc,  "Q.", "", "bold", "", true, "", "")
 		AdvTT.AddCell(2, 1, 4 + columnIndexInc,  "Lvl", "", "bold", "", true, "", "")
-		AdvTT.AddCell(2, 1, 5 + columnIndexInc,  "Xp", "", "bold", "", true, "", "")
+		AdvTT.AddCell(2, 1, 5 + columnIndexInc,  "Xp %", "", "bold", "", true, "", "")
 		AdvTT.AddCell(2, 1, 6 + columnIndexInc,  "Age", "", "bold", "", true, "", "")	
 	}
 	Else If (showItemLevel) {
@@ -2698,9 +2698,26 @@ TradeFunc_ParseHtml(data, payload, iLvl = "", ench = "", isItemAgeRequest = fals
 		AdvTT.AddCell(2, 1, 4 + columnIndexInc,  "Age", "", "bold", "", true, "", "")
 	}
 	
-	;debugprintarray(data)
-	For key, val in data {
+	debugprintarray(data)
+	For k, val in data.results {
+		If (TradeOpts.ShowAccountName) {
+			AdvTT.AddCell(2, k + 1, 1, val.accountName, "", "", "", true, "", "")
+		}
+		AdvTT.AddCell(2, k + 1, 1 + columnIndexInc, val.ign, "", "", "", true, "", "")
+		AdvTT.AddCell(2, k + 1, 2 + columnIndexInc, val.buyoutPrice " " val.buyoutCurrency, "", "", "", true, "", "")
 		
+		If (Item.IsGem) {
+			; add gem data
+			AdvTT.AddCell(2, k + 1, 3 + columnIndexInc,  val.gemData.quality, "", "", "", true, "", "")
+			AdvTT.AddCell(2, k + 1, 4 + columnIndexInc,  val.gemData.level, "", "", "", true, "", "")
+			AdvTT.AddCell(2, k + 1, 5 + columnIndexInc,  val.gemData.xpPercent, "", "", "", true, "", "")
+			AdvTT.AddCell(2, k + 1, 6 + columnIndexInc,  val.age, "", "", "", true, "", "")	
+		}
+		Else If (showItemLevel) {
+			; add ilvl data
+			AdvTT.AddCell(2, k + 1, 3 + columnIndexInc,  val.itemlevel, "", "", "", true, "", "")
+			AdvTT.AddCell(2, k + 1, 4 + columnIndexInc,  val.age, "", "", "", true, "", "")
+		}
 	}
 	
 	;debugprintarray(AdvTT.tables)
