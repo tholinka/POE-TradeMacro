@@ -2698,7 +2698,7 @@ TradeFunc_ParseHtml(data, payload, iLvl = "", ench = "", isItemAgeRequest = fals
 		AdvTT.AddCell(2, 1, 4 + columnIndexInc,  "Age", "", "bold", "", true, "", "")
 	}
 	
-	debugprintarray(data)
+	;debugprintarray(data)
 	For k, val in data.results {
 		If (TradeOpts.ShowAccountName) {
 			AdvTT.AddCell(2, k + 1, 1, val.accountName, "", "", "", true, "", "")
@@ -2720,11 +2720,7 @@ TradeFunc_ParseHtml(data, payload, iLvl = "", ench = "", isItemAgeRequest = fals
 		}
 	}
 	
-	;debugprintarray(AdvTT.tables)
-	;debugprintarray(AdvTT)
 	TradeFunc_CallToolTip(AdvTT)
-	;AdvTT.DrawTables()
-	;AdvTT.ShowToolTip()
 	
 	Return
 }
@@ -2752,6 +2748,7 @@ TradeFunc_CallToolTip(obj) {
 		Sleep, 50  ; kill some time before checking again
 	}
 	
+	ShowTooltip()
 	Run, %A_ScriptDir%\lib\PoEScripts_AdvancedToolTip.ahk
 }
 

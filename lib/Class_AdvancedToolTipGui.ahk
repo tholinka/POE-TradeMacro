@@ -148,11 +148,13 @@ class AdvancedToolTipGui
 	;		usedFixedCoords	- Whether to draw the ToolTip at fixed coordinates or use the current mouse position.
 	;		appAHKGroup		- Name of the ahk_group that contains the target application, optional.
 	;		appAHKID			- ahk_id of the target application, optional.
+	;		appAHKID			- ahk_id of the target application, optional.
+	;		exitAppOnTTClose	- if "true" a tooltip close will exit the app.
 	; ==================================================================================================================================
 	__New(params*)
 	{
 		c := params.MaxIndex()
-		If (c > 16) {
+		If (c > 17) {
 			throw "Too many parameters passed to AdvancedToolTipGui.New()"
 		}
 	
@@ -172,6 +174,7 @@ class AdvancedToolTipGui
 		this.usedFixedCoords	:= (params[14] = "" or not params[14]) ? false : params[14]
 		this.appAHKGroup		:= (not params[15]) ? "PoEWindowGrp" : params[15]
 		this.appAHKID			:= (not params[16]) ? "" : params[16]
+		this.exitAppOnTTClose	:= (params[17] = "" or not params[17]) ? false : params[17]
 		
 		this.fixedXPos			:= this.xPos
 		this.fixedYPos			:= this.yPos
@@ -524,6 +527,10 @@ class AdvancedToolTipGui
 		If (instantly or MouseMoved or (this.useToolTipTimeout and (this.tooltipTimeout >= this.toolTipTimeoutSec))) {
 			Gui, %GuiName%:Destroy
 			SetTimer % timer, Off
+			
+			If (this.exitAppOnTTClose) {
+				ExitApp
+			}
 		}
 	}
 

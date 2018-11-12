@@ -3,6 +3,8 @@
 #Include, %A_ScriptDir%\JSON.ahk
 #Include, %A_ScriptDir%\DebugPrintArray.ahk
 
+#NoTrayIcon
+
 FileRead, ttDump, %A_ScriptDir%\..\temp\advtooltip.json
 ttData := JSON.Load(ttDump)
 
@@ -26,8 +28,9 @@ ttData := JSON.Load(ttDump)
 ;		usedFixedCoords	- Whether to draw the ToolTip at fixed coordinates or use the current mouse position.
 ;		appAHKGroup		- Name of the ahk_group that contains the target application, optional.
 ;		appAHKID			- ahk_id of the target application, optional.
+;		exitAppOnTTClose	- if "true" a tooltip close will exit the app.
 ; ==================================================================================================================================
-global AdvTT := new AdvancedToolTipGui(ttData.GuiName, ttData.borderColor, ttData.backgroundColor, ttData.borderWidth, ttData.opacity, ttData.defTTFont, ttData.defTTFontSize, ttData.timeoutInterval, ttData.mouseMoveThreshold, ttData.useToolTipTimeout, ttData.toolTipTimeoutSec, ttData.xPos, ttData.yPos, ttData.usedFixedCoords, ttData.appAHKGroup, ttData.appAHKID)
+global AdvTT := new AdvancedToolTipGui(ttData.GuiName, ttData.borderColor, ttData.backgroundColor, ttData.borderWidth, ttData.opacity, ttData.defTTFont, ttData.defTTFontSize, ttData.timeoutInterval, ttData.mouseMoveThreshold, ttData.useToolTipTimeout, ttData.toolTipTimeoutSec, ttData.xPos, ttData.yPos, ttData.usedFixedCoords, ttData.appAHKGroup, ttData.appAHKID, true)
 AdvTT.CreateGui()
 
 For k, v in ttData.tables {
@@ -47,6 +50,7 @@ For k, v in ttData.tables {
 	}
 }
 
+; for winmerge comparison 
 dumpObj := JSON.Dump(ttData, "", 3)
 file := A_ScriptDir "\..\temp\1.txt"
 FileDelete, %file%
