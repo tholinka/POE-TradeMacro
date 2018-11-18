@@ -70,6 +70,28 @@ global overwrittenUserFiles	:= overwrittenUserFiles ? overwrittenUserFiles : arg
 
 global SuspendPOEItemScript = 0
 
+/*
+	Import item bases
+*/
+ItemBaseList := {}
+FileRead, JSONFile, %A_ScriptDir%\data\item_bases.json
+parsedJSON := JSON.Load(JSONFile)
+ItemBaseList.general := parsedJSON.item_bases
+
+FileRead, JSONFile, %A_ScriptDir%\data\item_bases_weapon.json
+parsedJSON := JSON.Load(JSONFile)
+ItemBaseList.weapons := parsedJSON.item_bases_weapon
+
+FileRead, JSONFile, %A_ScriptDir%\data\item_bases_armour.json
+parsedJSON := JSON.Load(JSONFile)
+ItemBaseList.armours := parsedJSON.item_bases_armour
+
+Globals.Set("ItemBaseList", ItemBaseList)
+Globals.Set("ItemFilterObj", [])
+Globals.Set("CurrentItemFilter", "")
+/*
+*/
+
 class UserOptions {	
 	ScanUI()
 	{
@@ -310,6 +332,9 @@ class Item_ {
 		This.MapLevel		:= ""
 		This.MapTier		:= ""
 		This.MaxSockets	:= ""
+		This.Sockets		:= ""
+		This.SocketGroups	:= []
+		This.Links		:= ""
 		This.SubType		:= ""		
 		This.DifficultyRestriction := ""
 		This.Implicit		:= []
@@ -593,15 +618,15 @@ OpenUserDirFile(Filename)
 
 OpenUserSettingsFolder(ProjectName, Dir = "")
 {
-    If (!StrLen(Dir)) {
-        Dir := userDirectory
-    }
+	If (!StrLen(Dir)) {
+		Dir := userDirectory
+	}
 
-    If (!InStr(FileExist(Dir), "D")) {
-        FileCreateDir, %Dir%
-    }
-    Run, Explorer %Dir%
-    return
+	If (!InStr(FileExist(Dir), "D")) {
+		FileCreateDir, %Dir%
+	}
+	Run, Explorer %Dir%
+	return
 }
 
 ; Function that checks item type name against entries
@@ -652,7 +677,7 @@ CheckRarityLevel(RarityString)
 	return 0 ; unknown rarity. shouldn't happen!
 }
 
-ParseItemType(ItemDataStats, ItemDataNamePlate, ByRef BaseType, ByRef SubType, ByRef GripType, IsMapFragment, RarityLevel)
+ParseItemType(ItemDataStats, ItemDataNamePlate, ByRef BaseType, ByRef SubType, ByRef GripType,  RarityLevel)
 {
 	; Grip type only matters for weapons at this point. For all others it will be 'None'.
 	; Note that shields are armour and not weapons, they are not 1H.
@@ -749,7 +774,7 @@ ParseItemType(ItemDataStats, ItemDataNamePlate, ByRef BaseType, ByRef SubType, B
 
 	; Check name plate section
 	Loop, Parse, ItemDataNamePlate, `n, `r
-	{
+	{		
 		; Get third line in case of rare or unique item and retrieve the base item name
 		LoopField := RegExReplace(A_LoopField, "<<.*>>", "")
 		If (RarityLevel > 2)
@@ -916,11 +941,6 @@ ParseItemType(ItemDataStats, ItemDataNamePlate, ByRef BaseType, ByRef SubType, B
 			SubType = BodyArmour
 			return
 		}
-	}
-
-	If (IsMapFragment) {
-		SubType = MapFragment
-		return
 	}
 }
 
@@ -2866,16 +2886,16 @@ ParseMapAffixes(ItemDataAffixes)
 				AppendAffixInfo(MakeMapAffixLine(A_LoopField, Index_MonstMoveAttCastSpeed), A_Index)
 				Continue
 			}
-			Else If InStr (Index_MonstMoveAttCastSpeed, "a")
+			Else If InStr(Index_MonstMoveAttCastSpeed, "a")
 			{
 				Index_MonstMoveAttCastSpeed := StrReplace(Index_MonstMoveAttCastSpeed, "a", "b")
 				AppendAffixInfo(MakeMapAffixLine(A_LoopField, Index_MonstMoveAttCastSpeed), A_Index)
 				Continue
 			}
-			Else If InStr (Index_MonstMoveAttCastSpeed, "b")
+			Else If InStr(Index_MonstMoveAttCastSpeed, "b")
 			{
-				Index_MonstMoveAttCastSpeed := StrReplace(Index_MonstMoveAttCastSpeed, "b", "")
-				AppendAffixInfo(MakeMapAffixLine(A_LoopField, Index_MonstMoveAttCastSpeed . "c"), A_Index)
+				Index_MonstMoveAttCastSpeed := StrReplace(Index_MonstMoveAttCastSpeed, "b", "c")
+				AppendAffixInfo(MakeMapAffixLine(A_LoopField, Index_MonstMoveAttCastSpeed), A_Index)
 				Continue
 			}
 		}
@@ -2942,16 +2962,19 @@ ParseMapAffixes(ItemDataAffixes)
 			}
 		}
 	}
-
+	
 	If (Flag_TwoAdditionalProj and Flag_SkillsChain)
 	{
 		MapModWarnings := MapModWarnings . "`nAdditional Projectiles & Skills Chain"
 	}
-
+	
 	If (Count_DmgMod >= 1.5)
 	{
-		String_DmgMod := SubStr(String_DmgMod, 3)
-		MapModWarnings := MapModWarnings . "`nMulti Damage: " . String_DmgMod
+		If (MapModWarn.MultiDmgWarning)
+		{
+			String_DmgMod := SubStr(String_DmgMod, 3)
+			MapModWarnings := MapModWarnings . "`nMulti Damage: " . String_DmgMod
+		}
 	}
 	
 	If (Not Opts.EnableMapModWarnings)
@@ -5222,7 +5245,15 @@ ParseAffixes(ItemDataAffixes, Item)
 		
 		IfInString, A_LoopField, increased Quantity of Items found
 		{
-			LookupAffixAndSetInfoLine("data\IncrQuantity.txt", "Suffix", ItemLevel, CurrValue)
+			If (Item.IsShaperBase)
+			{
+				File := ["75|4-7","85|8-10"]
+			}
+			Else
+			{
+				File := "data\IncrQuantity.txt"
+			}
+			LookupAffixAndSetInfoLine(File, "Suffix", ItemLevel, CurrValue)
 			Continue
 		}
 		IfInString, A_LoopField, Life gained on Kill
@@ -6895,7 +6926,7 @@ PostProcessData(ParsedData)
 
 ParseClipBoardChanges(debug = false)
 {
-	Global Opts, Globals
+	Global Opts, Globals, Item
 	
 	CBContents := GetClipboardContents()
 	CBContents := PreProcessContents(CBContents)
@@ -6961,6 +6992,24 @@ GetTimestampUTC() { ; http://msdn.microsoft.com/en-us/library/ms724390
 	. SubStr("0" . NumGet(ST,  8, "UShort"), -1)     ; hour   : 2 digits forced
 	. SubStr("0" . NumGet(ST, 10, "UShort"), -1)     ; minute : 2 digits forced
 	. SubStr("0" . NumGet(ST, 12, "UShort"), -1)     ; second : 2 digits forced
+}
+
+WriteToLogFile(data, file, project) {
+	logFile	:= A_ScriptDir "\temp\" file
+	If (not FileExist(logFile)) {
+		FileAppend, Starting up %project%....`n`n, %logFile%
+	}
+
+	line		:= "----------------------------------------------------------"
+	timeStamp	:= ""
+	UTCTimestamp := GetTimestampUTC()
+	UTCFormatStr := "yyyy-MM-dd'T'HH:mm'Z'"
+	FormatTime, TimeStr, %UTCTimestamp%, %UTCFormatStr%
+
+	entry	:= line "`n" TimeStr "`n" line "`n`n"
+	entry	:= entry . data "`n`n"
+
+	FileAppend, %entry%, %logFile%
 }
 
 ParseAddedDamage(String, DmgType, ByRef DmgLo, ByRef DmgHi)
@@ -7243,6 +7292,14 @@ ParseItemName(ItemDataChunk, ByRef ItemName, ByRef ItemBaseName, AffixCount = ""
 		isVaalGem := true
 	}
 
+	If (RegExMatch(ItemData.NamePlate, "i)Rarity\s?+:\s?+(Currency|Divination Card|Gem)", match)) {
+		If (RegExMatch(match1, "i)Gem")) {
+			ItemBaseName := Trim(RegExReplace(ItemName, "i) Support"))
+		} Else {
+			ItemBaseName := Trim(ItemName)
+		}		
+	}
+	
 	Loop, Parse, ItemDataChunk, `n, `r
 	{
 		If (A_Index == 1)
@@ -7273,11 +7330,23 @@ ParseItemName(ItemDataChunk, ByRef ItemName, ByRef ItemBaseName, AffixCount = ""
 			{
 				ItemName := A_LoopField
 				If (isVaalGem and not RegExMatch(ItemName, "i)^Vaal ")) {
-					ItemName := "Vaal " ItemName
+					; examples of name differences
+					; summon skeleton - vaal summon skeletons
+					; Purity of Lightning - Vaal Impurity of Lightning
+					ItemName := ItemData.Parts[6]	; this may be unsafe, the parts index may change in the future
+
+					For k, part in ItemData.Parts {
+						If (RegExMatch(part, "im)(^Vaal .*?" ItemName ".*)", vaalName)) {	; TODO: make sure this is safer
+							ItemName := vaalName1
+							Break
+						}
+					}
 				}
 			}
+
 			; Normal items don't have a third line and the item name equals the BaseName if we sanitize it ("superior").
-			If (RegExMatch(ItemDataChunk, "i)Rarity.*?:.*?Normal"))
+			; Also unidentified items.
+			If (RegExMatch(ItemDataChunk, "i)Rarity.*?:.*?Normal") or RegExMatch(ItemData.PartsLast, "i)Unidentified"))
 			{
 				ItemBaseName := Trim(RegExReplace(ItemName, "i)Superior", ""))
 				Return
@@ -7366,18 +7435,43 @@ ParseLinks(ItemDataText)
 ParseSockets(ItemDataText)
 {
 	SocketsCount := 0
+	
+	Loop, Parse, ItemDataText, `n, `r
+	{
+		If (RegExMatch(A_LoopField, "i)^Sockets\s?+:"))
+		{
+			LinksString	:= GetColonValue(A_LoopField)
+			RegExReplace(LinksString, "i)[RGBWDA]", "", SocketsCount) ; "D" is being used for Resonator sockets, "A" for Abyssal Sockets
+			Break
+		}
+	}
+
+	return SocketsCount
+}
+
+ParseSocketGroups(ItemDataText)
+{
+	groups := []
 	Loop, Parse, ItemDataText, `n, `r
 	{
 		IfInString, A_LoopField, Sockets
 		{
-			LinksString	:= GetColonValue(A_LoopField)
-			before		:= StrLen(LinksString)
-			LinksString	:= RegExReplace(LinksString, "[RGBW]", "")
-			after		:= StrLen(LinksString)
-			SocketsCount	:= before - after
+			RegExMatch(A_LoopField, "i)Sockets:\s?(.*)", socketString)
+			
+			sockets := socketString1 " "	; add a space at the end for easier regex
+			If (StrLen(sockets)) {
+				Pos		:= 0
+				While Pos	:= RegExMatch(sockets, "i)(.*?)\s+", value, Pos + (StrLen(value) ? StrLen(value) : 1)) {
+					s := Trim(value1)
+					s := RegExReplace(s, "i)-")
+					If (StrLen(Trim(s))) {
+						groups.push(s)
+					}
+				}
+			}
 		}
 	}
-	return SocketsCount
+	return groups
 }
 
 ParseCharges(stats)
@@ -7840,7 +7934,10 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 	ItemData.Rarity	:= ParseRarity(ItemData.NamePlate)
 	
 	ItemData.Links		:= ParseLinks(ItemDataText)
-	ItemData.Sockets	:= ParseSockets(ItemDataText)
+	Item.Links		:= ItemData.Links
+	ItemData.Sockets	:= ParseSockets(ItemDataText)	
+	Item.Sockets		:= ItemData.Sockets
+	Item.SocketGroups	:= ParseSocketGroups(ItemDataText)
 
 	Item.Charges		:= ParseCharges(ItemData.Stats)
 
@@ -7883,7 +7980,16 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 	Item.IsGem	:= (InStr(ItemData.Rarity, "Gem"))
 	Item.IsCurrency:= (InStr(ItemData.Rarity, "Currency"))
 	
-	If (Not (InStr(ItemDataText, "Itemlevel:") or InStr(ItemDataText, "Item Level:")) and Not Item.IsGem and Not Item.IsCurrency and Not Item.IsDivinationCard and Not Item.IsProphecy)
+	regex := ["^Sacrifice At", "^Fragment of", "^Mortal ", "^Offering to ", "'s Key$", "Ancient Reliquary Key", "Timeworn Reliquary Key", "Breachstone", "Divine Vessel"]
+	For key, val in regex {
+		If (RegExMatch(Item.Name, "i)" val "")) {
+			Item.IsMapFragment := True
+			Item.SubType := "Map Fragment"
+			Break
+		}
+	}	
+	
+	If (Not (InStr(ItemDataText, "Itemlevel:") or InStr(ItemDataText, "Item Level:")) and not Item.IsGem and not Item.IsCurrency and not Item.IsDivinationCard and not Item.IsProphecy)
 	{
 		return Item.Name
 	}
@@ -7903,6 +8009,8 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 	{
 		If (Item.IsCurrency)
 		{
+			Item.BaseType := "Currency"
+	
 			dataSource	:= ""
 			ValueInChaos	:= ConvertCurrency(Item.Name, ItemData.Stats, dataSource)
 			If (ValueInChaos.Length() and not Item.Name == "Chaos Orb")
@@ -7927,19 +8035,11 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 		; Don't do this on Divination Cards or this script crashes on trying to do the ParseItemLevel
 		Else If (Not Item.IsCurrency and Not Item.IsDivinationCard and Not Item.IsProphecy)
 		{
-			regex := ["^Sacrifice At", "^Fragment of", "^Mortal ", "^Offering to ", "'s Key$", "Ancient Reliquary Key"]
-			For key, val in regex {
-				If (RegExMatch(Item.Name, "i)" val "")) {
-					Item.IsMapFragment := True
-					Break
-				}
-			}
-
 			RarityLevel	:= CheckRarityLevel(ItemData.Rarity)
 			Item.Level	:= ParseItemLevel(ItemDataText)
 			ItemLevelWord	:= "Item Level:"
 			If (Not Item.IsBeast) {
-				ParseItemType(ItemData.Stats, ItemData.NamePlate, ItemBaseType, ItemSubType, ItemGripType, Item.IsMapFragment, RarityLevel)
+				ParseItemType(ItemData.Stats, ItemData.NamePlate, ItemBaseType, ItemSubType, ItemGripType, RarityLevel)
 				Item.BaseType	:= ItemBaseType
 				Item.SubType	:= ItemSubType
 				Item.GripType	:= ItemGripType
@@ -7970,7 +8070,7 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 	Item.IsMirrored	:= (ItemIsMirrored(ItemDataText) and Not Item.IsCurrency)
 	Item.IsEssence		:= Item.IsCurrency and RegExMatch(Item.Name, "i)Essence of |Remnant of Corruption")
 	Item.Note			:= Globals.Get("ItemNote")
-	
+
 	If (Item.IsLeaguestone) {
 		Item.AreaMonsterLevelReq	:= ParseAreaMonsterLevelRequirement(ItemData.Stats)
 	}
@@ -8276,7 +8376,7 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 		If (Itemdata.Rarity = "Magic"){
 			PrefixLimit := 1
 			SuffixLimit := 1
-		}Else{
+		} Else {
 			PrefixLimit := 3
 			SuffixLimit := 3
 		}
@@ -8422,7 +8522,7 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 			TT .= "`n--------`nNotation:" Notation
 		}
 	}
-	
+
 	return TT
 }
 
@@ -8466,6 +8566,10 @@ GetNegativeAffixOffset(Item)
 	If (Item.IsMirrored)
 	{
 		NegativeAffixOffset += 1
+	}
+	If (RegExMatch(Item.Name, "i)Tabula Rasa")) ; no mods, no flavour text
+	{
+		NegativeAffixOffset -= 2
 	}
 	return NegativeAffixOffset
 }
@@ -10398,7 +10502,7 @@ HighlightItems(broadTerms = false, leaveSearchField = true) {
 	{
 		Global Item, Opts, Globals, ItemData
 
-		ClipBoardTemp := Clipboard
+		ClipBoardTemp := ClipboardAll
 		SuspendPOEItemScript = 1 ; This allows us to handle the clipboard change event
 		
 		scancode_c := Globals.Get("ScanCodes").c
@@ -10511,11 +10615,15 @@ HighlightItems(broadTerms = false, leaveSearchField = true) {
 				If (broadTerms) {
 					terms.push(Item.BaseType)
 				} Else {
-					terms.push(Item.BaseName)
+					If (Item.BaseName) {
+						terms.push(Item.BaseName)	
+					} Else {
+						terms.push("Jewel")
+					}					
 					terms.push(rarity)
 				}
 			}
-			; offerings / sacrifice and mortal fragments / guardian fragments / council keys / breachstones
+			; offerings / sacrifice and mortal fragments / guardian fragments / council keys / breachstones / reliquary keys
 			Else If (RegExMatch(Item.Name, "i)Sacrifice At") or RegExMatch(Item.Name, "i)Fragment of") or RegExMatch(Item.Name, "i)Mortal ") or RegExMatch(Item.Name, "i)Offering to ") or RegExMatch(Item.Name, "i)'s Key") or RegExMatch(Item.Name, "i)Breachstone") or RegExMatch(Item.Name, "i)Reliquary Key")) {
 				If (broadTerms) {
 					tmpName := RegExReplace(Item.Name, "i)(Sacrifice At).*|(Fragment of).*|(Mortal).*|.*('s Key)|.*(Breachstone)|(Reliquary Key)", "$1$2$3$4$5$6")
@@ -10564,8 +10672,12 @@ HighlightItems(broadTerms = false, leaveSearchField = true) {
 							}
 						}
 					}
-				} Else {
-					terms.push(Item.BaseName)
+				} Else {			
+					If (Item.BaseName) {
+						terms.push(Item.BaseName)	
+					} Else {
+						terms.push(Trim(RegExReplace(Item.Name, "Superior")))
+					}
 				}
 			}
 		}
@@ -10612,7 +10724,7 @@ AdvancedItemInfoExt() {
 	{
 		Global Item, Opts, Globals, ItemData
 
-		ClipBoardTemp := Clipboard
+		ClipBoardTemp := ClipboardAll
 		SuspendPOEItemScript = 1 ; This allows us to handle the clipboard change event
 
 		Clipboard :=
@@ -10639,7 +10751,7 @@ OpenItemOnPoEAntiquary() {
 	{
 		Global Item, Opts, Globals, ItemData
 
-		ClipBoardTemp := Clipboard
+		ClipBoardTemp := ClipboardAll
 		SuspendPOEItemScript = 1 ; This allows us to handle the clipboard change event
 
 		Clipboard :=
@@ -10829,7 +10941,7 @@ LookUpAffixes() {
 	{
 		Global Item, Opts, Globals, ItemData
 
-		ClipBoardTemp := Clipboard
+		ClipBoardTemp := ClipboardAll
 		SuspendPOEItemScript = 1 ; This allows us to handle the clipboard change event
 
 		Clipboard :=
@@ -10906,6 +11018,12 @@ ToolTipTimer:
 		{
 			ToolTip
 		}
+		
+		; close item filter nameplate
+		fullScriptPath := A_ScriptDir "\lib\PoEScripts_ItemFilterNamePlate.ahk"
+		DetectHiddenWindows, On
+		WinClose, %fullScriptPath% ahk_class AutoHotkey
+		WinKill, %fullScriptPath% ahk_class AutoHotkey
 	}
 	return
 
@@ -11457,50 +11575,72 @@ CheckForUpdates:
 	}
 	return
 
-; TODO: use this for trademacro also
-CurrencyDataDowloadURLtoJSON(url, sampleValue, critical = false, league = "", project ="", tmpFileName = "", fallbackDir = "", ByRef usedFallback = false) {
+CurrencyDataDowloadURLtoJSON(url, sampleValue, critical = false, isFallbackRequest = false, league = "", project = "", tmpFileName = "", fallbackDir = "", ByRef usedFallback = false, ByRef loggedCurrencyRequestAtStartup = false, ByRef loggedTempLeagueCurrencyRequest = false) {
 	errorMsg := "Parsing the currency data (json) from poe.ninja failed.`n"
 	errorMsg .= "This should only happen when the servers are down / unavailable."
 	errorMsg .= "`n`n"
 	errorMsg .= "This can fix itself when the servers are up again and the data gets updated automatically or if you restart the script at such a time."
+	errorMsg .= "`n`n"
+	errorMsg .= "You can find a log file with some debug information:"
+	errorMsg .= "`n" """" A_ScriptDir "\temp\StartupLog.txt"""
+	errorMsg .= "`n`n"
 
 	errors := 0
+	parsingError := false	
 	Try {
-		reqHeaders.push("Host: poe.ninja")
 		reqHeaders.push("Connection: keep-alive")
 		reqHeaders.push("Cache-Control: max-age=0")
-		;reqHeaders.push("Content-type: application/x-www-form-urlencoded; charset=UTF-8")
 		reqHeaders.push("Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8")	
 		reqHeaders.push("User-Agent: Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36")
-		parsedJSON := PoEScripts_Download(url, postData, reqHeaders, options, true, true, false, "", reqHeadersCurl)
+		currencyData := PoEScripts_Download(url, postData, reqHeaders, options, true, true, false, "", reqHeadersCurl)
 		
+		If (FileExist(A_ScriptDir "\temp\currencyHistory_" league ".txt")) {
+			FileDelete, % A_ScriptDir "\temp\currencyHistory_" league ".txt"	
+		}
+		FileAppend, %currencyData%, % A_ScriptDir "\temp\currencyHistory_" league ".txt"
+		
+		Try {
+			parsedJSON := JSON.Load(currencyData)
+		} Catch e {
+			parsingError := true
+		}	
+		
+		isTempLeague := RegExMatch(league, "^(Standard|Hardcore)")
+		If (not loggedCurrencyRequestAtStartup or (not loggedTempLeagueCurrencyRequest and not isTempLeague)) {
+			logMsg := "Requesting currency data from poe.ninja...`n`n" "cURL command:`n" reqHeadersCurl "`n`nAnswer: " reqHeaders
+			WriteToLogFile(logMsg, "StartupLog.txt", project)
+			
+			loggedCurrencyRequestAtStartup := true
+			If (not loggedTempLeagueCurrencyRequest and not isTempLeague) {
+				loggedTempLeagueCurrencyRequest := true
+			}
+		}
 		; first currency data parsing (script start)
-		If (critical and not sampleValue or not parsedJSON.lines.length()) {
+		If ((critical and (not sampleValue or isFallbackRequest)) or not parsedJSON.lines.length()) {
 			errors++
 		}
 	} Catch error {
 		; first currency data parsing (script start)
-		If (critical and not sampleValue) {
+		If (critical and (not sampleValue or isFallbackRequest)) {
 			errors++
 		}
 	}
 
-	Try {
-		parsedJSON := JSON.Load(parsedJSON)
-	} Catch e {
-		parsingError := true
-	}
-	
-	If ((errors and critical and not sampleValue) or parsingError) {
+	If ((errors and critical and (not sampleValue or isFallbackRequest)) or parsingError) {
 		FileRead, JSONFile, %fallbackDir%\currencyData_Fallback_%league%.json
 		Try {
 			parsedJSON := JSON.Load(JSONFile)
-			errorMsg .= "Using archived data from a fallback file. League: """ league """."
+			If (isFallbackRequest) {
+				errorMsg .= "This is a fallback request trying to get data for the """ league """ league since getting data for the currently selected league failed."
+				errorMsg .= "`n`n"
+			}
+			errorMsg .= "The script is now using archived data from a fallback file instead. League: """ league """"
 			errorMsg .= "`n`n"
 		} Catch e {
 			errorMsg .= "Using archived fallback data failed (JSON parse error)."
 			errorMsg .= "`n`n"
 		}
+		
 		MsgBox, 16, %project% - Error, %errorMsg%
 		usedFallback := true
 	}
@@ -11512,15 +11652,17 @@ FetchCurrencyData:
 	_CurrencyDataJSON	:= {}
 	currencyLeagues	:= ["Standard", "Hardcore", "tmpstandard", "tmphardcore", "eventstandard", "eventhardcore"]
 	sampleValue		:= "ff"
+	loggedCurrencyRequestAtStartup := loggedCurrencyRequestAtStartup ? loggedCurrencyRequestAtStartup : false
+	loggedTempLeagueCurrencyRequest := loggedTempLeagueCurrencyRequest ? loggedTempLeagueCurrencyRequest : false
 	
 	Loop, % currencyLeagues.Length() {
 		currencyLeague := currencyLeagues[A_Index]
-		url  := "http://poe.ninja/api/Data/GetCurrencyOverview?league=" . currencyLeague
+		url  := "https://poe.ninja/api/Data/GetCurrencyOverview?league=" . currencyLeague
 		file := A_ScriptDir . "\temp\currencyData_" . currencyLeague . ".json"
 
-		url		:= "http://poe.ninja/api/Data/GetCurrencyOverview?league=" . currencyLeague
+		url		:= "https://poe.ninja/api/Data/GetCurrencyOverview?league=" . currencyLeague
 		critical	:= StrLen(Globals.Get("LastCurrencyUpdate")) ? false : true
-		parsedJSON := CurrencyDataDowloadURLtoJSON(url, sampleValue, critical, currencyLeague, "PoE-ItemInfo", file, A_ScriptDir "\data", usedFallback)		
+		parsedJSON := CurrencyDataDowloadURLtoJSON(url, sampleValue, critical, false, currencyLeague, "PoE-ItemInfo", file, A_ScriptDir "\data", usedFallback, loggedCurrencyRequestAtStartup, loggedTempLeagueCurrencyRequest)		
 
 		Try {
 			If (parsedJSON) {		
@@ -11625,8 +11767,9 @@ GetScanCodes() {
 	; 0xF002 = "Dvorak"
 	; 0xF01B = "Dvorak right handed"
 	; 0xF01A = "Dvorak left handed"
+	; 0xF01C0809 = some other Dvorak layout
 	
-	If (RegExMatch(InputLocaleID, "i)^(0xF002|0xF01B|0xF01A).*")) {
+	If (RegExMatch(InputLocaleID, "i)^(0xF002|0xF01B|0xF01A|0xF01C0809|0xF01C0409).*")) {
 		; dvorak
 		sc := {"c" : "sc017", "v" : "sc034", "f" : "sc015", "a" : "sc01E", "enter" : "sc01C"}
 		project := Globals.Set("ProjectName")
@@ -11638,6 +11781,628 @@ GetScanCodes() {
 		sc := {"c" : "sc02E", "v" : "sc02f", "f" : "sc021", "a" : "sc01E", "enter" : "sc01C"}
 		Return sc
 	}	
+}
+
+GetCurrentItemFilterPath(ByRef parsingNeeded = true) {
+	currentFilter	:= Globals.Get("CurrentItemFilter")
+	iniPath		:= A_MyDocuments . "\My Games\Path of Exile\"
+	configs 		:= []
+	productionIni	:= iniPath . "production_Config.ini"
+	betaIni		:= iniPath . "beta_Config.ini"	
+
+	configs.push(productionIni)
+	configs.push(betaIni)
+	If (not FileExist(productionIni) and not FileExist(betaIni)) {
+		Loop %iniPath%\*.ini
+		{
+			configs.push(iniPath . A_LoopFileName)		
+		}	
+	}
+
+	readFile		:= ""
+	For key, val in configs {
+		IniRead, filter, %val%, UI, item_filter_loaded_successfully
+		If (filter != "ERROR" and FileExist(iniPath . filter)) {
+			Break
+		}
+	}
+	
+	filter := iniPath . filter
+
+	If (currentFilter != filter) {
+		parsingNeeded := true
+		Globals.Set("CurrentItemFilter", filter)
+		Return filter
+	} Else {
+		parsingNeeded := false
+		Return currentFilter
+	}
+}
+
+ShowAdvancedItemFilterFormatting() {
+	Global Item
+
+	SuspendPOEItemScript = 1 ; This allows us to handle the clipboard change event
+
+	scancode_c := Globals.Get("Scancodes").c
+	Send ^{%scancode_c%}
+	Sleep 150
+	CBContents := GetClipboardContents()
+	CBContents := PreProcessContents(CBContents)
+	Globals.Set("ItemText", CBContents)
+	ParsedData := ParseItemData(CBContents)
+	ShowItemFilterFormatting(Item, true)
+	
+	SuspendPOEItemScript = 0 ; Allow ItemInfo to handle clipboard change event	
+}
+
+ShowItemFilterFormatting(Item, advanced = false) {
+	If (not Item.Name) {
+		Return
+	}
+	
+	parsingNeeded := true
+	filterFile := GetCurrentItemFilterPath(parsingNeeded)
+	If (RegExMatch(filterFile, "i).*\\(error)$")) {
+		If (advanced) {
+			ShowToolTip("No custom loot filter loaded successfully.`nMake sure you have one selected in your UI options.")
+		}
+		Return
+	}
+	
+	ItemBaseList := Globals.Get("ItemBaseList")
+	
+	search := {}
+	search.LinkedSockets := Item.Links
+	search.ShaperItem := Item.IsShaperBase
+	search.ElderItem := Item.IsElderBase
+	search.ItemLevel := Item.Level
+	search.BaseType := [Item.BaseName]
+	search.HasExplicitMod :=					; HasExplicitMod "of Crafting" "of Spellcraft" "of Weaponcraft"
+	search.Identified := Item.IsUnidentified ? 0 : 1
+	search.Corrupted := Item.IsCorrupted
+	search.Quality := Item.Quality
+	search.Sockets := Item.Sockets	
+	search.Width :=
+	search.Height :=
+	search.name := Item.Name
+
+	; rarity
+	If (Item.RarityLevel = 1) {
+		search.Rarity := "Normal"
+		search.RarityLevel := 1
+	} Else If (Item.RarityLevel = 2) {
+		search.Rarity := "Magic"
+		search.RarityLevel := 2
+	} Else If (Item.RarityLevel = 3) {
+		search.Rarity := "Rare"
+		search.RarityLevel := 3
+	} Else If (Item.RarityLevel = 4) {
+		search.Rarity := "Unique"
+		search.RarityLevel := 4
+	}
+	
+	; classes
+	class := (StrLen(Item.SubType)) ? Item.SubType : Item.BaseType
+	search.Class := []
+	If (RegExMatch(class, "i)BodyArmour")) {
+		search.Class.push("Body Armour")
+		search.Class.push("Body Armours")
+	}
+	If (RegExMatch(class, "i)Sword|Mace|Axe")) {
+		If (Item.GripType = "2H") {
+			search.Class.push(class)
+			search.Class.push("Two Hand " class)
+			search.Class.push("Two Hand " class "s")
+			search.Class.push("Two Hand")
+		} Else {
+			search.Class.push(class)
+			search.Class.push("One Hand " class)
+			search.Class.push("One Hand " class "s")
+			search.Class.push("One Hand")
+		}
+	}
+	If (RegExMatch(class, "i)Flask")) {
+		If (RegExMatch(Item.BaseName, "i) (Life|Mana) ", match)) {
+			search.Class.push(match1 " Flasks") 
+			search.Class.push(match1 " Flask") 
+			search.Class.push("Flask") 
+		} Else {			
+			search.Class.push("Utility Flasks") 
+			search.Class.push("Utility Flask") 
+			search.Class.push("Flask") 
+		}
+	}
+	If (RegExMatch(class, "i)Jewel")) {
+		class := "Jewel"
+		search.Class.push(class)
+		search.Class.push(class "s")
+		
+		If (RegExMatch(Item.SubType, "i)Murderous Eye|Hypnotic Eye|Searching Eye")) {
+			class := "Abyss Jewel"
+			search.Class.push(class)
+			search.Class.push(class "s")
+		}
+	}
+	If (RegExMatch(class, "i)Currency") and RegExMatch(Item.BaseName, "i)Resonator")) {
+		search.Class.push("Delve Socketable Currency")		
+		search.Class.push("Currency")		
+	}	
+	; Quest Items
+	If (RegExMatch(Item.BaseName, "i)(Elder's Orb|Shaper's Orb)", match)) {
+		search.Class.push("Quest")
+		Item.IsQuestItem := true
+	}
+
+	If (not search.Class.MaxIndex() and StrLen(class)) {		
+		search.Class.push(class)
+		search.Class.push(class "s")
+	}
+	
+	For key, val in ItemBaseList {
+		For k, v in val {
+			If (k = Item.BaseName) {
+				search.DropLevel := v["Drop Level"]
+				search.Width := v["Width"]
+				search.Height := v["Height"]
+				Break
+			}
+		}
+	}
+	If (Item.IsMap) {
+		search.DropLevel := Item.MapTier + 67
+	}
+
+	; SocketGroups, RGB for example
+	search.SocketGroup := []
+	For key, val in Item.SocketGroups {
+		sGroup := {}
+		_r := RegExReplace(val, "i)r" , "", rCount)
+		_g := RegExReplace(val, "i)g" , "", gCount)
+		_b := RegExReplace(val, "i)b" , "", bCount)
+		_w := RegExReplace(val, "i)w" , "", wCount)
+		_w := RegExReplace(val, "i)d" , "", dCount)
+		_w := RegExReplace(val, "i)a" , "", aCount)
+		sGroup.r := rCount
+		sGroup.g := gCount
+		sGroup.b := bCount
+		sGroup.w := wCount
+		sGroup.d := dCount
+		sGroup.a := aCount
+		If (sGroup.r or sGroup.b or sGroup.g or sGroup.w or sGroup.d or sGroup.a) {
+			search.SocketGroup.push(sGroup)	
+		}		
+	}	
+	
+	search.HasExplicitMod := []
+	; works only for magic items
+	If (Item.RarityLevel = 2) {
+		RegExMatch(Item.Name, "i)(.*)?" Item.BaseName "(.*)?", nameParts)
+		If (StrLen(nameParts1)) {
+			search.HasExplicitMod.push(Trim(nameParts1))
+		}
+		If (StrLen(nameParts2)) {
+			search.HasExplicitMod.push(Trim(nameParts2))
+		}
+	}
+	
+	search.SetBackGroundColor	:= GetItemDefaultColor(Item, "BackGround")
+	search.SetBorderColor		:= GetItemDefaultColor(Item, "Border")
+	search.SetTextColor			:= GetItemDefaultColor(Item, "Text")
+	
+	search.LabelLines := []
+	_line := (Item.Quality > 0) ? "Superior " RegExReplace(Item.Name, "i)Superior (.*)", "$1") : Item.Name
+	_line := (not Item.IsGem and not Item.IsUnidentified and not Item.RarityLevel = 1) ? RegExReplace(Item.Name, "i)Superior (.*)", "$1") : _line
+	_line .= (Item.IsGem and Item.Level > 1) ? " (Level " Item.Level ")" : "" 
+	search.LabelLines.push(_line)
+	
+	; Unidentified rare/unique items have the same baseName as their name
+	If (Item.RarityLevel >= 3 and (RegExReplace(Item.Name, "i)Superior (.*)", "$1") != Item.BaseName)) {
+		_line := Item.BaseName
+		search.LabelLines.push(_line)
+	}	
+
+	ParseItemLootFilter(filterFile, search, parsingNeeded, advanced) 
+}
+
+GetItemDefaultColor(item, cType) {
+	If (cType = "Border") {
+		; labyrinth map item or map fragment
+		If (item.IsMapFragment) {
+			return "200 200 200 1" ; // white
+		}
+
+		; Quest Item / labyrinth item
+		If (item.IsQuestItem or item.IsLabyrinthItem) { ; these variables don't exist yet
+			return "74 230 58 1" ; // green
+		}
+
+		; map rarity
+		Else If (item.IsMap) {
+			If (item.RarityLevel = 1) {
+				return "200 200 200 1"
+			} Else If (item.RarityLevel = 2) {
+				return "136 136 255 1"
+			} Else If (item.RarityLevel = 3) {
+				return "255 255 119 1"
+			} Else If (item.RarityLevel = 4) {
+				return " 175 96 37 1"
+			} Else {
+				return "255 255 255 0"
+			}
+		}
+		
+		; default border color: none
+		Else  {
+			return s:= "0 0 0 0"
+		}
+	}
+	
+	; background is always black
+	Else If (cType = "BackGround") {		
+		return  "0 0 0 255"
+	}
+	
+	Else If (cType = "Text") {
+		; create text color based gem class
+		If (item.IsGem)
+		{
+			return "27 162 155 1"
+		}
+
+		; create text color based on currency class
+		Else If (item.IsCurrency)
+		{
+			return "170 158 130 1"
+		}
+
+		; create text color based on map fragments classes
+		Else If (RegExMatch(item.Name, "i)Offering of the Goddess") or item.IsMap)
+		{
+			return "200 200 200 1"
+		}
+
+		; quest / lab item
+		Else If (item.IsQuestItem or item.IsLabyrinthItem) ; IsLabyrinthItem doesn't exist yet
+		{
+			return "74 230 58 1"
+		}
+
+		; div card
+		Else If (item.IsDivinationCard)
+		{
+			return "14 186 255 1"
+		}
+		
+		; create text color based on rarity
+		Else If (item.RarityLevel)
+		{
+			If (item.RarityLevel = 1) {
+				return "200 200 200 1"
+			} Else If (item.RarityLevel = 2) {
+				return "136 136 255 1"
+			} Else If (item.RarityLevel = 3) {
+				return "255 255 119 1"
+			} Else If (item.RarityLevel = 4) {
+				return " 175 96 37 1"
+			} Else {
+				return "255 255 255 0"
+			}
+		}
+
+		; creating default text color (white)
+		Else {
+			return "255 255 255 1"
+		}
+	}
+	
+	Return
+}
+
+ParseItemLootFilter(filter, item, parsingNeeded, advanced = false) {
+	; https://pathofexile.gamepedia.com/Item_filter
+	rules := []
+	matchedRule := {}
+	
+	; Use already parsed filter data if the item filter is still the same
+	If (not parsingNeeded) {
+		rules := Globals.Get("ItemFilterObj")
+	}
+	; Parse the item filter if it wasn't used the last time or fall back to parsing it if using the already parsed data fails
+	If (parsingNeeded or rules.MaxIndex() > 1) {
+		/*
+			Parse filter rules to object
+		*/
+		Loop, Read, %filter%
+		{
+			If (RegExMatch(A_LoopReadLine, "i)^#") or not StrLen(A_LoopReadLine)) {
+				continue
+			}
+			
+			If (RegExMatch(Trim(A_LoopReadLine), "i)^(Show|Hide)(\s|#)?", match)) {
+				rule := {}
+				rule.Display := match1
+				rule.Conditions := []
+				rule.Comments := []
+				If (RegExMatch(Trim(A_LoopReadLine), "i)#(.*)?", comment)) { ; only comments after filter code
+					If (StrLen(comment1)) {
+						rule.Comments.push(comment1)	
+					}				
+				}
+				rules.push(rule)
+			} Else  {
+				RegExMatch(Trim(A_LoopReadLine), "i)#(.*)?", comment) ; only comments after filter code
+				If (StrLen(comment1)) {
+					rules[rules.MaxIndex()].Comments.push(comment1)
+				}			
+				
+				line := RegExReplace(Trim(A_LoopReadLine), "i)#.*")
+				
+				/*
+					Styles (last line is valid)
+				*/
+				If (RegExMatch(line, "i)^.*?Color\s")) {
+					RegExMatch(line, "i)(.*?)\s(.*)", match)
+					rules[rules.MaxIndex()][Trim(match1)] := Trim(match2)
+				}
+				
+				Else If (RegExMatch(line, "i)^.*?(PlayAlertSound|MinimapIcon|PlayEffect)\s")) {
+					RegExMatch(line, "i)(.*?)\s(.*)", match)
+					params := StrSplit(Trim(match2), " ")
+					rules[rules.MaxIndex()][Trim(match1)] := params
+				}
+				
+				/*
+					Conditions (every condition must match, lines don't overwrite each other)
+				*/
+				Else If (RegExMatch(line, "i)^.*?(Class|BaseType|HasExplicitMod|SocketGroup)\s")) {
+					RegExMatch(line, "i)(.*?)\s(.*)", match)
+					
+					;temp := RegExReplace(match2, "i)(""\s+"")", """,""")
+					temp := RegExReplace(match2, "i)(\s)\s+", "\s")
+					temp := RegExReplace(temp, "i)(\s+)|""(.*?)""", "$1,$2")
+					temp := RegExReplace(temp, "i)(,,+)", ",")
+					temp := RegExReplace(temp, "i)(\s,)", ",")
+					temp := RegExReplace(temp, "i)(^,)|(, $)")
+					
+					arr := StrSplit(temp, ",")
+					
+					condition := {}
+					condition.name := match1
+					condition.values := arr
+					rules[rules.MaxIndex()].conditions.push(condition)
+				}
+				
+				Else If (RegExMatch(line, "i)^.*?(DropLevel|ItemLevel|Rarity|LinkedSockets|Sockets|Quality|Height|Width|StackSize|GemLevel|MapTier)\s")) {
+					RegExMatch(line, "i)(.*?)\s(.*)", match)
+					paramsTemp := StrSplit(Trim(match2), " ")
+					
+					condition := {}
+					condition.name := match1
+					condition.operator := ParamsTemp.MaxIndex() = 2 ? paramsTemp[1] : "=" 
+					condition.value := ParamsTemp.MaxIndex() = 2 ? paramsTemp[2] : paramsTemp[1]
+					
+					; rarity
+					If (condition.value = "Normal") {
+						condition.value := 1
+					} Else If (condition.value = "Magic") {
+						condition.value := 2
+					} Else If (condition.value = "Rare") {
+						condition.value := 3
+					} Else If (condition.value = "Unique") {
+						condition.value := 4
+					}
+					
+					rules[rules.MaxIndex()].conditions.push(condition)
+				}
+				
+				Else If (RegExMatch(line, "i)^.*?(Identified|Corrupted|ElderItem|ShaperItem|ShapedMap|ElderMap)\s")) {
+					RegExMatch(line, "i)(.*?)\s(.*)", match)		
+					
+					condition := {}
+					condition.name := Trim(match1)
+					condition.value := Trim(match2) = "True" ? true : false			
+					rules[rules.MaxIndex()].conditions.push(condition)
+				}		
+				
+				/*
+					the rest
+				*/			
+				Else {
+					RegExMatch(line, "i)(.*?)\s(.*)", match)			
+					rules[rules.MaxIndex()][Trim(match1)] := Trim(match2)
+				}
+			}
+		}
+		Globals.Set("ItemFilterObj", rules)
+	}
+	
+	json := JSON.Dump(rules)
+	FileDelete, %A_ScriptDir%\temp\itemFilterParsed.json
+	FileAppend, %json%, %A_ScriptDir%\temp\itemFilterParsed.json
+	
+	/*
+		Match item againt rules
+	*/
+	match := ""
+	match1 := ""
+	match2 := ""
+	For k, rule in rules {
+		totalConditions := rule.conditions.MaxIndex()
+		matchingConditions := 0		
+		matching_rules := []
+		
+		For i, condition in rule.conditions {
+			
+			If (RegExMatch(condition.name, "i)(LinkedSockets|DropLevel|ItemLevel|Rarity|Sockets|Quality|Height|Width|StackSize|GemLevel|MapTier)", match1)) {
+				If (match1 = "Rarity") {
+					If (CompareNumValues(item["RarityLevel"], condition.value, condition.operator)) {
+						matchingConditions++
+						matching_rules.push(condition.name)
+					}
+				} Else {
+					If (CompareNumValues(item[match1], condition.value, condition.operator)) {
+						matchingConditions++
+						matching_rules.push(condition.name)
+					}	
+				}				
+			}
+			Else If (RegExMatch(condition.name, "i)(Identified|Corrupted|ElderItem|ShaperItem|ShapedMap)", match1)) {
+				If (item[match1] == condition.value) {
+					matchingConditions++
+					matching_rules.push(condition.name)
+				}
+			}
+			Else If (RegExMatch(condition.name, "i)(Class|BaseType|HasExplicitMod)", match1)) {
+				For j, value in condition.values {
+					foundMatch := 0
+					
+					For l, v in item[match1] {
+						If (RegExMatch(v, "i)" value "")) {
+							matchingConditions++
+							matching_rules.push(condition.name)
+							foundMatch := 1
+							Break
+						}
+					}
+					If (foundMatch) {
+						Break
+					}
+				}
+			}
+			Else If (RegExMatch(condition.name, "i)(SocketGroup)", match1)) {
+				For j, value in condition.values {
+					foundMatch := 0
+					
+					For l, v in item[match1] {
+						_r := RegExReplace(value, "i)r" , "", rCount)
+						_g := RegExReplace(value, "i)g" , "", gCount)
+						_b := RegExReplace(value, "i)b" , "", bCount)
+						_w := RegExReplace(value, "i)w" , "", wCount)
+						_w := RegExReplace(value, "i)d" , "", dCount)
+						_w := RegExReplace(value, "i)a" , "", aCount)
+						
+						If (v.r = rCount and v.g = gCount and v.b = bCount and v.w = wCount and v.d = dCount and v.a = aCount) {
+							matchingConditions++
+							matching_rules.push(condition.name)
+							foundMatch := 1
+							Break
+						}
+					}
+					If (foundMatch) {
+						Break
+					}
+				}
+			}
+		}
+		
+		If (totalConditions = matchingConditions) {
+			matchedRule := rule
+			matchedRule["matching_rules"] := matching_rules
+			Break
+		}
+	}
+	;debugprintarray([matchedRule, item])
+	
+	If (not StrLen(matchedRule.SetBackgroundColor)) {
+		matchedRule.SetBackgroundColor := item.SetBackgroundColor
+	}
+	If (not StrLen(matchedRule.SetBorderColor)) {
+		matchedRule.SetBorderColor := item.SetBorderColor
+	}
+	If (not StrLen(matchedRule.SetTextColor)) {
+		matchedRule.SetTextColor := item.SetTextColor
+	}
+	If (not StrLen(matchedRule.SetFontSize)) {
+		matchedRule.SetFontSize := 32
+	}
+
+	itemName		:= item.LabelLines[1]
+	itemBase		:= item.LabelLines[2]
+	bgColor		:= matchedRule.SetBackgroundColor
+	borderColor	:= matchedRule.SetBorderColor
+	fontColor 	:= matchedRule.SetTextColor
+	fontSize		:= matchedRule.SetFontSize
+	
+	If (advanced) {	
+		filterName := RegExReplace(Globals.Get("CurrentItemFilter"), "i).*\\(.*)(\.filter)","$1")
+		commentsJSON := DebugPrintArray(matchedRule, false)
+		
+		comments := ""
+		For key, val in matchedRule.Comments {
+			comments .= val "`n"
+		}
+		
+		conditions := ""
+		rarities := ["Normal", "Magic", "Rare", "Unique"]
+		For key, val in matchedRule.Conditions {
+			If (val.operator) {
+				cLine := val.name
+				If (val.name = "Rarity") {				
+					cLine .= " " val.operator " " rarities[val.value]
+				} Else {
+					cLine .= " " val.operator " " val.value	
+				}				
+			}
+			Else {
+				cLine := val.name ": "
+				indent := StrLen(cLine)
+				count := 0
+				For k, v in val.values {
+					cLine .= """" v """"
+					
+					count++
+					If (count = 5) {
+						cLine .= "`n" StrPad("", indent)
+						count := 0
+					} Else {
+						cLine .= ", "
+					}
+				}
+			}
+			
+			conditions .= cLine "`n" 
+		}
+		conditions := RegExReplace(Trim(conditions), "i),(\n|\r|\s)+?$")
+
+		line := "--------------------------------------------"
+		tt := "Loaded Item Filter: """ filterName """`n`n"
+		tt .= "Inline comments:" "`n" line "`n" 
+		tt .= comments "`n"
+		tt .= "Matching conditions:" "`n" line "`n" 
+		tt .= conditions "`n`n"
+		tt .= "  Disclaimer: Matching explicit mods is only possible for magic items. In rare" "`n"
+		tt .= "              cases this can cause a wrong match, depending on the used filter."
+		
+		ShowToolTip(tt)	
+	}
+	
+	MouseGetPos, CurrX, CurrY
+	
+	If (advanced) {
+		Run "%A_AhkPath%" "%A_ScriptDir%\lib\PoEScripts_ItemFilterNamePlate.ahk" "%itemName%" "%itemBase%" "%bgColor%"  "%borderColor%"  "%fontColor%"  "%fontSize%" "%CurrX%" "%CurrY%" "1"	
+	} Else {
+		Run "%A_AhkPath%" "%A_ScriptDir%\lib\PoEScripts_ItemFilterNamePlate.ahk" "%itemName%" "%itemBase%" "%bgColor%"  "%borderColor%"  "%fontColor%"  "%fontSize%" "%CurrX%" "%CurrY%" 
+	}
+	
+}
+
+CompareNumValues(num1, num2, operator = "=") {
+	res := 0
+	If (operator = "=") {
+		res := num1 = num2
+	} Else If (operator = "==") {
+		res := num1 == num2
+	} Else If (operator = ">=") {
+		res := num1 >= num2
+	} Else If (operator = ">") {
+		res := num1 > num2
+	} Else If (operator = "<=") {
+		res := num1 <= num2
+	} Else If (operator = "<") {
+		res := num1 < num2
+	}
+	Return res
 }
 
 ; ############ (user) macros #############

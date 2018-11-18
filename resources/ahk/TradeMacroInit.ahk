@@ -86,6 +86,13 @@ argumentOverwrittenFiles = %4%
 
 ; when using the fallback exe we're missing the parameters passed by the merge script
 If (!StrLen(argumentProjectName) > 0) {
+	fallbackExeMsg := "You're using a compiled version (.exe) of the script which is only intended to be used if the normal version (.ahk script) doesn't work for you."
+	fallbackExeMsg .= "`n`nThis version can possibly cause issues that you wouldn't have with the normal script though."
+	fallbackExeMsg .= "`n`nUse ""Run_TradeMacro.ahk"" if possible and try it before reporting any issues!"
+	fallbackExeMsg .= "`n`n(closes after 10s)..."
+	SplashTextOff
+	MsgBox, 0x1030, PoE-TradeMacro Fallback, % fallbackExeMsg, 10
+	
 	argumentProjectName		:= "PoE-TradeMacro"
 	FilesToCopyToUserFolder	:= A_ScriptDir . "\resources\default_UserFiles"
 	argumentOverwrittenFiles	:= PoEScripts_HandleUserSettings(argumentProjectName, A_MyDocuments, argumentProjectName, FilesToCopyToUserFolder, A_ScriptDir)
@@ -769,7 +776,7 @@ CreateTradeSettingsUI()
 	GuiAddCheckbox("Get currency ratio note:", "x657 yp+32 w165 h20 0x0100", TradeOpts.SetCurrencyRatio, "SetCurrencyRatio", "SetCurrencyRatioH")
 	AddToolTip(SetCurrencyRatioH, "Copies an item note for premium tabs to your clipboard`nthat creates a valid currency ratio on all trade sites.")
 	GuiAddHotkey(TradeOpts.SetCurrencyRatioHotkey, "x+1 yp-2 w124 h20", "SetCurrencyRatioHotkey", "SetCurrencyRatioHotkeyH")
-	AddToolTip(SetCurrencyRatioHotkeyH, "Press key/key combination.`nDefault: ctrl + r")
+	AddToolTip(SetCurrencyRatioHotkeyH, "Press key/key combination.`nDefault: alt + r")
 
 	Gui, Add, Link, x657 yp+35 w210 h20 cBlue BackgroundTrans, <a href="http://www.autohotkey.com/docs/Hotkeys.htm">Hotkey Options</a>
 
@@ -1039,7 +1046,8 @@ TradeFunc_DownloadDataFiles() {
 		FileCopy, %filePath%, %filePath%.bak
 		output := PoEScripts_Download(url . file, postData := "", ioHdr := reqHeaders := "", options := "", false, false, false, "", reqHeadersCurl)
 		If (A_Index = 1) {
-			TradeFunc_WriteToLogFile("Data file download from " url "...`n`n" "cURL command:`n" reqHeadersCurl "`n`nAnswer:`n" ioHdr)
+			logMsg := "Data file download from " url "...`n`n" "cURL command:`n" reqHeadersCurl "`n`nAnswer:`n" ioHdr
+			WriteToLogFile(logMsg, "StartupLog.txt", "PoE-TradeMacro")
 		}
 
 		FileDelete, %filePath%
@@ -1416,12 +1424,12 @@ TradeFunc_TestCloudflareBypass(Url, UserAgent="", cfduid="", cfClearance="", use
 	reqHeaders.push("Accept-Encoding:gzip, deflate")
 	reqHeaders.push("Accept-Language:de-DE,de;q=0.8,en-US;q=0.6,en;q=0.4")
 	reqHeaders.push("Connection:keep-alive")
-	reqHeaders.push("Host:poe.trade")
 	reqHeaders.push("Upgrade-Insecure-Requests:1")
 
 	html := ""
 	html := PoEScripts_Download(Url, ioData := postData, ioHdr := reqHeaders, options, false, false, false, "", reqHeadersCurl, handleAccessForbidden := false)
-	TradeFunc_WriteToLogFile("Testing CloudFlare bypass, connecting to " url "...`n`n" "cURL command:`n" reqHeadersCurl "`n`nAnswer:`n" ioHdr)
+	logMsg := "Testing CloudFlare bypass, connecting to " url "...`n`n" "cURL command:`n" reqHeadersCurl "`n`nAnswer:`n" ioHdr
+	WriteToLogFile(logMsg, "StartupLog.txt", "PoE-TradeMacro")
 
 	; pathofexile.com link in page footer (forum thread)
 	RegExMatch(html, "i)pathofexile", match)
@@ -1486,24 +1494,6 @@ TradeFunc_ClearWebHistory() {
 
 }
 
-TradeFunc_WriteToLogFile(data) {
-	logFile	:= A_ScriptDir "\temp\StartupLog.txt"
-	If (not FileExist(logFile)) {
-		FileAppend, Starting up PoE-TradeMacro....`n`n, %logFile%
-	}
-
-	line		:= "----------------------------------------------------------"
-	timeStamp	:= ""
-	UTCTimestamp := GetTimestampUTC()
-	UTCFormatStr := "yyyy-MM-dd'T'HH:mm'Z'"
-	FormatTime, TimeStr, %UTCTimestamp%, %UTCFormatStr%
-
-	entry	:= line "`n" TimeStr "`n" line "`n`n"
-	entry	:= entry . data "`n`n"
-
-	FileAppend, %entry%, %logFile%
-}
-
 TradeFunc_GetOSInfo() {
 	objWMIService := ComObjGet("winmgmts:{impersonationLevel=impersonate}!\\" . A_ComputerName . "\root\cimv2")
 	colOS := objWMIService.ExecQuery("Select * from Win32_OperatingSystem")._NewEnum
@@ -1538,9 +1528,15 @@ TradeFunc_GetOSInfo() {
 ;----------------------- SplashScreens ---------------------------------------
 TradeFunc_StartSplashScreen() {
 	;SplashTextOn, , 20, PoE-TradeMacro, Initializing script...
-	welcome := chr(27426)chr(36814)	; 欢迎
-	;SplashTextOn, 300, 20, PoE-TradeMacro, % "Welcoming the new overlords (" welcome ")..."
-	SplashTextOn, 300, 20, PoE-TradeMacro, % "Paying respects to the Cynical Brit..."
+	/*
+	initArray := ["Sending Einhar to catch some canaries...", "Burying Sunder and KB in the Depths...", "Hiring Keanu Reeves as a cart driver...", "Hiring a wheely good escort...", 
+	"Preparing GPU to mine Azurite...",  "Loading spell block... 3%... aborting...", "Exploring reddit's first infinite salt mine...", "Awakening the balrogs...", 
+	"Sending the dark elves into some arc delves..."]
+	*/
+	initArray := ["Initializing script...", "Preparing Einhars welcoming party...", "Uninstalling Battle.net...", "Investigating the so-called ""Immortals""...", "Starting mobile app...", "Hunting some old friends..."]
+	
+	Random, randomNum, 1, initArray.MaxIndex()
+	SplashTextOn, 300, 20, PoE-TradeMacro, % initArray[randomNum]
 }
 
 TradeFunc_StopSplashScreen() {
