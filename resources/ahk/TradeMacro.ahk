@@ -2773,6 +2773,7 @@ TradeFunc_ParseHtml(data, payload, iLvl = "", ench = "", isItemAgeRequest = fals
 
 TradeFunc_CallToolTip(obj) {
 	dumpObj := JSON.Dump(obj)
+
 	file := A_ScriptDir "\temp\advtooltip.json"
 	FileDelete, %file% 
 	FileAppend, %dumpObj%, %file%
@@ -2781,6 +2782,8 @@ TradeFunc_CallToolTip(obj) {
 	loops := 0
 	error := false
 	Loop {
+		Sleep, 50  ; kill some time before checking
+		
 		loops++
 		ErrorLevel := 0
 		FileMove, %file%, %file% ; renames the file to the same file name
@@ -2791,10 +2794,9 @@ TradeFunc_CallToolTip(obj) {
 			error := true
 			Break
 		}
-		Sleep, 50  ; kill some time before checking again
 	}
 	
-	ShowTooltip()
+	ShowTooltip("")
 	Run, %A_ScriptDir%\lib\PoEScripts_AdvancedToolTip.ahk
 }
 
