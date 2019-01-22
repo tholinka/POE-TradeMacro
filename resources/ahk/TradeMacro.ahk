@@ -3353,6 +3353,7 @@ class RequestParams_ {
 		query.stats.push(stat_group)
 		*/
 		query.name := this.name
+		query.type := this.xbase
 		;query.filters["weapon_filters"] := {}
 		;query.filters["weapon_filters"].filters := {}
 		;query.filters["weapon_filters"].filters.damage["min"] := 1
@@ -3366,7 +3367,7 @@ class RequestParams_ {
 		query.filters := {}
 		
 		weapon_filters := {}
-		armor_filters := {}
+		armour_filters := {}
 		socket_filters := {}
 		req_filters := {}
 		misc_filters := {}
@@ -3401,7 +3402,7 @@ class RequestParams_ {
 		}
 		
 		query.filters["weapon_filters"] := weapon_filters
-		query.filters["armor_filters"] := armor_filters
+		query.filters["armour_filters"] := armour_filters
 		query.filters["socket_filters"] := socket_filters
 		query.filters["req_filters"] := req_filters
 		query.filters["misc_filters"] := misc_filters
