@@ -3331,50 +3331,37 @@ class RequestParams_ {
 
 	NewPayload()
 	{
-		x := {}
 		query := {}
-		/*
-		;  poe.trade mod groups
-		query.stats := []
-		
-		stat_group := {}
-		stat_group.type := "and" ;modGroups[A_Index].group_type
-		stat_group.filters := [] ;mods for that group
-		
-		; todo: loop 
-			stat := {}
-			stat.id := "pseudo.pseudo_total_attack_speed"
-			stat.value["min"] := "20"
-			stat.value["max"] := "40"
-		
-		stat_group.filters.push(stat)
-		;
-			
-		query.stats.push(stat_group)
-		*/
 		query.name := this.name
 		query.type := this.xbase
-		;query.filters["weapon_filters"] := {}
-		;query.filters["weapon_filters"].filters := {}
-		;query.filters["weapon_filters"].filters.damage["min"] := 1
-		;query.filters["weapon_filters"].filters.damage["max"] := 999
 		
-		;if (StrLen(this.dmg_min))
-		;	query.filters["weapon_filters"].filters.damage["min"] := this.dmg_min
-		;if (StrLen(this.dmg_max))
-		;	query.filters["weapon_filters"].filters.damage["max"] := this.dmg_max
+		;disabled while eru translates mods to their ids
+		/*query.stats := []
+		Loop, % this.modGroups.MaxIndex() {
+			query.stats.push(this.modGroups[A_Index].toObj())
+			;stat.id := "pseudo.pseudo_total_attack_speed"
+		}
+		*/
 		
 		query.filters := {}
 		
+		; todo
+		;req_filters := {}
+		;armour_filters := {}
+		
+		
 		weapon_filters := {}
-		armour_filters := {}
+		weapon_filters.filters := {}
+		
+		if (StrLen(this.dmg_min))
+			weapon_filters.filters.damage["min"] := this.dmg_min
+		if (StrLen(this.dmg_max))
+			weapon_filters.filters.damage["max"] := this.dmg_max
+		;todo
+		
+		
 		socket_filters := {}
-		req_filters := {}
-		misc_filters := {}
-		
 		socket_filters.filters := {}
-		misc_filters.filters := {}
-		
 		if (StrLen(this.sockets_min))
 		{
 			socket_filters.filters.sockets["min"] := 0 + this.sockets_min
@@ -3391,7 +3378,10 @@ class RequestParams_ {
 		{
 			socket_filters.filters.links["max"] := 0 + this.link_max
 		}
+		;todo
 		
+		misc_filters := {}
+		misc_filters.filters := {}
 		if (this.corrupted = "1")
 		{
 			misc_filters.filters.corrupted["option"] := "true"
@@ -3400,12 +3390,17 @@ class RequestParams_ {
 		{
 			misc_filters.filters.corrupted["option"] := "false"
 		}
+		;todo
+		
+		;query.filters.trade_filters := {}
+		
 		
 		query.filters["weapon_filters"] := weapon_filters
-		query.filters["armour_filters"] := armour_filters
+		;query.filters["armour_filters"] := armour_filters
 		query.filters["socket_filters"] := socket_filters
-		query.filters["req_filters"] := req_filters
+		;query.filters["req_filters"] := req_filters
 		query.filters["misc_filters"] := misc_filters
+		;query.filters["trade_filters"] := trade_filters
 		
 		/*trade_filters := {}
 		
@@ -3421,9 +3416,9 @@ class RequestParams_ {
 		*/
 		
 		
-		;query.filters.trade_filters := {}
 		;query.filters.trade_filters.filters := trade_filters
 		
+		x := {}
 		x.query := query
 		
 		p := JSON.Dump(x)
@@ -3490,11 +3485,21 @@ CleanPayload(payload) {
 
 class _ParamModGroup {
 	ModArray		:= []
-	group_type	:= "And"
+	group_type	:= "and"
 	group_min		:= ""
 	group_max		:= ""
 	group_count	:= 1
 
+	ToObj() {
+		stat_group := {}
+		stat_group.type := this.group_type
+		stat_group.filters := []
+		Loop % this.ModArray.Length() {
+			stat_group.filters.push(this.ModArray[A_Index].ToObj())
+		}
+		return stat_group
+	}
+	
 	ToPayload() {
 		p := ""
 
@@ -3542,6 +3547,19 @@ class _ParamMod {
 	mod_min	:= ""
 	mod_max	:= ""
 	mod_weight := ""
+
+	ToObj()
+	{
+		stat := {}
+		If (StrLen(this.mod_name)) {
+			stat.id := this.mod_name
+			if (StrLen(this.mod_min))
+				stat.value["min"] := this.mod_min
+			if (StrLen(this.mod_max))
+				stat.value["max"] := this.mod_max
+		}
+		Return stat
+	}
 	
 	ToPayload()
 	{
@@ -5801,14 +5819,20 @@ TradeFunc_HandleCustomSearchSubmit(openInBrowser = false) {
 		}
 		Item.UsedInSearch.Corruption := CustomSearchCorrupted
 
-		Payload := RequestParams.ToPayload()
 		If (openInBrowser) {
 			ShowToolTip("")
-			Html := TradeFunc_DoPostRequest(Payload, true)
-			RegExMatch(Html, "i)href=""\/(search\/.*?)\/live", ParsedUrl)
-			TradeFunc_OpenUrlInBrowser("http://poe.trade/" ParsedUrl1)
+			RequestParams.official := true
+			Payload := RequestParams.ToPayload()
+			url := TradeFunc_DoPostRequestOfficial(Payload, LeagueName, true)
+			TradeFunc_OpenUrlInBrowser("https://www.pathofexile.com/trade/search/" LeagueName "/" url)
+			
+			/*Html := TradeFunc_DoPostRequest(Payload, true)
+				RegExMatch(Html, "i)href=""\/(search\/.*?)\/live", ParsedUrl)
+				TradeFunc_OpenUrlInBrowser("http://poe.trade/" ParsedUrl1)
+			*/
 		}
 		Else {
+			Payload := RequestParams.ToPayload()
 			ShowToolTip("Requesting search results... ")
 			Html := TradeFunc_DoPostRequest(Payload)
 			ParsedData := TradeFunc_ParseHtml(Html, Payload)
