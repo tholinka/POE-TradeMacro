@@ -60,6 +60,7 @@ data_trade/old_data_files/
 data_trade/backup/*
 backup/*
 backup/
+AHK-Studio Backup/
 test.ahk
 test.txt
 DebugFile.txt

@@ -421,6 +421,8 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 	RequestParams			:= new RequestParams_()
 	RequestParams.league	:= LeagueName
 	RequestParams.has_buyout	:= "1"
+	
+	official := false
 
 	/*
 		ignore item name in certain cases
@@ -517,6 +519,7 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 	}
 
 	If (Item.IsUnique) {
+		official := true
 		; returns mods with their ranges of the searched item if it is unique and has variable mods
 		uniqueWithVariableMods :=
 		uniqueWithVariableMods := TradeFunc_FindUniqueItemIfItHasVariableRolls(Name, Item.IsRelic)
@@ -1280,6 +1283,17 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 		create payload
 		*/
 	Payload := RequestParams.ToPayload()
+	if (official)
+	{
+		RequestParams.official := true
+		Payload := RequestParams.ToPayload()
+		console.log(Payload)
+	}
+	else
+	{
+		Payload := RequestParams.ToPayload()
+		console.log(Payload)
+	}
 	
 	/*
 		Create second payload for exact currency search (backup search if no results were found with primary currency)
@@ -1330,10 +1344,19 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 		Html := TradeFunc_DoPoePricesRequest(ItemData.FullText, requestCurl)
 	}
 	Else If (not openSearchInBrowser) {
-		Html := TradeFunc_DoPostRequest(Payload, openSearchInBrowser)
+		if (official)
+		{
+			Html := TradeFunc_DoPostRequestOfficial(Payload, LeagueName)
+			console.log(Html)
+		}
+		Else
+		{
+			Html := TradeFunc_DoPostRequest(Payload, openSearchInBrowser)
+			;console.log(Html)
+		}
 	}
 
-	If (openSearchInBrowser) {
+	If (openSearchInBrowser) { ;*[TradeMacro]
 		If (TradeOpts.PoENinjaSearch and (url := TradeFunc_GetPoENinjaItemUrl(TradeOpts.SearchLeague, Item))) {
 			TradeFunc_OpenUrlInBrowser(url)
 			If (not TradeOpts.CopyUrlToClipboard) {
@@ -1345,7 +1368,15 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 			}
 			Else {
 				; using GET request instead of preventing the POST request redirect and parsing the url
-				parsedUrl1 := "http://poe.trade/search?" Payload
+				if (official)
+				{
+					Html := TradeFunc_DoPostRequestOfficial(Payload, LeagueName, true)
+					parsedUrl1 := "https://www.pathofexile.com/trade/search/" LeagueName "/" Html
+				}
+				Else
+				{
+					parsedUrl1 := "http://poe.trade/search?" Payload
+				}
 				; redirect was prevented to get the url and open the search on poe.trade instead
 				;RegExMatch(Html, "i)href=""(https?:\/\/.*?)""", ParsedUrl)
 			}
@@ -1417,6 +1448,59 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 
 	TradeGlobals.Set("AdvancedPriceCheckItem", {})
 }
+
+TradeFunc_DoPostRequestOfficial(payload, league, openSearchInBrowser = false) {
+	;UserAgent   := TradeGlobals.Get("UserAgent")
+	;cfduid      := TradeGlobals.Get("cfduid")
+	;cfClearance := TradeGlobals.Get("cfClearance")
+	
+	postData 	:= payload
+	payLength	:= StrLen(postData)
+	url 		:= "https://www.pathofexile.com/api/trade/search/" league
+	options	:= ""
+	options	.= "`n" "ReturnHeaders: skip"
+	options	.= "`n" "TimeOut: " TradeOpts.CurlTimeout
+	options	.= "`n" "RequestType: POST"
+	
+	console.log(payload)
+	
+	reqHeaders	:= []
+	;reqHeaders.push("Cache-Control: max-age=0")
+	;reqHeaders.push("Upgrade-Insecure-Requests: 1")
+	
+	reqHeaders.push("Connection: keep-alive")
+	reqHeaders.push("Content-Type: application/json")
+	;reqHeaders.push("Accept-Encoding: gzip")
+	;reqHeaders.push("Accept: application/json")
+	;reqHeaders.push("Referer: http://poe.trade/")	
+	;debugprintarray(reqHeaders)
+	
+	/*If (StrLen(UserAgent)) {
+		reqHeaders.push("User-Agent: " UserAgent)
+		reqHeaders.push("Cookie: __cfduid=" cfduid "; cf_clearance=" cfClearance)
+	} Else {
+		reqHeaders.push("User-Agent:Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36")
+	}
+	*/
+	
+	html := PoEScripts_Download(url, postData, reqHeaders, options, false)
+	console.log(html)
+	
+	If (TradeOpts.Debug) {
+		FileDelete, %A_ScriptDir%\temp\DebugSearchOutput.html
+		FileAppend, %html%, %A_ScriptDir%\temp\DebugSearchOutput.html
+	}
+	
+	if (openSearchInBrowser)
+	{
+		Return html.id
+	}
+	
+	; todo parse?
+	
+	Return, html ; object
+}
+
 
 TradeFunc_GetPoENinjaItemUrl(league, item) {	
 	url := "https://poe.ninja/"
@@ -3242,8 +3326,116 @@ class RequestParams_ {
 	elder		:= ""
 	map_series 	:= ""
 	veiled		:= ""
+	
+	official := false
 
+	NewPayload()
+	{
+		x := {}
+		query := {}
+		/*
+		;  poe.trade mod groups
+		query.stats := []
+		
+		stat_group := {}
+		stat_group.type := "and" ;modGroups[A_Index].group_type
+		stat_group.filters := [] ;mods for that group
+		
+		; todo: loop 
+			stat := {}
+			stat.id := "pseudo.pseudo_total_attack_speed"
+			stat.value["min"] := "20"
+			stat.value["max"] := "40"
+		
+		stat_group.filters.push(stat)
+		;
+			
+		query.stats.push(stat_group)
+		*/
+		query.name := this.name
+		;query.filters["weapon_filters"] := {}
+		;query.filters["weapon_filters"].filters := {}
+		;query.filters["weapon_filters"].filters.damage["min"] := 1
+		;query.filters["weapon_filters"].filters.damage["max"] := 999
+		
+		;if (StrLen(this.dmg_min))
+		;	query.filters["weapon_filters"].filters.damage["min"] := this.dmg_min
+		;if (StrLen(this.dmg_max))
+		;	query.filters["weapon_filters"].filters.damage["max"] := this.dmg_max
+		
+		query.filters := {}
+		
+		weapon_filters := {}
+		armor_filters := {}
+		socket_filters := {}
+		req_filters := {}
+		misc_filters := {}
+		
+		socket_filters.filters := {}
+		misc_filters.filters := {}
+		
+		if (StrLen(this.sockets_min))
+		{
+			socket_filters.filters.sockets["min"] := 0 + this.sockets_min
+		}
+		if (StrLen(this.sockets_max))
+		{
+			socket_filters.filters.sockets["max"] := 0 + this.sockets_max
+		}
+		if (StrLen(this.link_min))
+		{
+			socket_filters.filters.links["min"] := 0 + this.link_min
+		}
+		if (StrLen(this.link_max))
+		{
+			socket_filters.filters.links["max"] := 0 + this.link_max
+		}
+		
+		if (this.corrupted = "1")
+		{
+			misc_filters.filters.corrupted["option"] := "true"
+		}
+		else if (this.corrupted = "0")
+		{
+			misc_filters.filters.corrupted["option"] := "false"
+		}
+		
+		query.filters["weapon_filters"] := weapon_filters
+		query.filters["armor_filters"] := armor_filters
+		query.filters["socket_filters"] := socket_filters
+		query.filters["req_filters"] := req_filters
+		query.filters["misc_filters"] := misc_filters
+		
+		/*trade_filters := {}
+		
+		trade_filters["price"] := {}
+		if (StrLen(this.buyout_min))
+		{
+			trade_filters["price"].min := this.buyout_min
+		}
+		if (StrLen(this.buyout_max))
+		{
+			trade_filters["price"].max := this.buyout_max
+		}
+		*/
+		
+		
+		;query.filters.trade_filters := {}
+		;query.filters.trade_filters.filters := trade_filters
+		
+		x.query := query
+		
+		p := JSON.Dump(x)
+		console.log(p)
+		Return p
+	}
+	
+	
 	ToPayload() {
+		if (this.official)
+		{
+			Return this.NewPayload()
+		}
 		modGroupStr := ""
 		Loop, % this.modGroups.MaxIndex() {
 			modGroupStr .= this.modGroups[A_Index].ToPayload()
@@ -3251,6 +3443,10 @@ class RequestParams_ {
 
 		p :=
 		For key, val in this {
+			if (key = "official")
+			{
+				Continue
+			}
 			; check if not array (modGroups for example are arrays)
 			If (!this[key].MaxIndex()) {
 				If (StrLen(val)) {

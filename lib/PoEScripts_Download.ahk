@@ -117,7 +117,9 @@
 
 		If (StrLen(ioData) and not requestType = "GET") {
 			If (requestType = "POST") {
+				commandData .= "-H ""Content-Type: application/json"" "
 				commandData .= "-X POST "
+				ioData := RegExReplace(ioData, """", "\""")
 			}
 			commandData .= "--data """ ioData """ "
 		} Else If (StrLen(ioData)) {
@@ -167,7 +169,13 @@
 	; check if response has a good status code or is valid JSON (shouldn't be an erroneous response in that case)
 	goodStatusCode := RegExMatch(ioHdr, "i)HTTP\/(.*)((200|302)\s?(OK|Found)?)")
 	Try {
-		isJSON := isObject(JSON.Load(ioHdr))
+		jsonObj := JSON.Load(ioHdr)
+		if (requestType = "POST")
+		{
+			console.log(ioHdr)
+			jsonObj := JSON.Load(ioHdr)
+			Return jsonObj
+		}
 	} Catch er {
 		
 	}
