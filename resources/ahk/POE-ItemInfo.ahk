@@ -8607,7 +8607,7 @@ PreparePseudoModCreation(Affixes, Implicit, Rarity, isMap = false) {
 
 ; Convert mod strings to objects while separating combined mods like "+#% to Fire and Lightning Resitances"
 ; Moved from TradeMacro to ItemInfo to avoid duplicate code, please be careful with any changes
-ModStringToObject(string, isImplicit) {
+ModStringToObject(string, isImplicit, official = true) {
 	StringReplace, val, string, `r,, All
 	StringReplace, val, val, `n,, All
 	values := []
@@ -8715,7 +8715,11 @@ ModStringToObject(string, isImplicit) {
 			s := RegExReplace(s, "i)" replacer_reg "", exception)
 		}
 		
-		temp.name		:= RegExReplace(s, "i)# ?to ? #", "#", isRange)
+		If (official) {
+			temp.name		:= s
+		} Else {
+			temp.name		:= RegExReplace(s, "i)# ?to ? #", "#", isRange)
+		}
 		temp.isVariable:= false
 		temp.type		:= (isImplicit and Matches.Length() <= 1) ? "implicit" : "explicit"
 		arr.push(temp)
@@ -8725,7 +8729,7 @@ ModStringToObject(string, isImplicit) {
 }
 
 ; Moved from TradeMacro to ItemInfo to avoid duplicate code, please be careful with any changes
-CreatePseudoMods(mods, returnAllMods := False) {
+CreatePseudoMods(mods, returnAllMods := False, official := true) {
 	tempMods := []
 	lifeFlat := 0
 	manaFlat := 0
@@ -8962,8 +8966,8 @@ CreatePseudoMods(mods, returnAllMods := False) {
 	If (lifeFlat > 0) {
 		temp := {}
 		temp.values		:= [lifeFlat]
-		temp.name_orig		:= "+" . lifeFlat . " to maximum Life"
-		temp.name			:= "+# to maximum Life"
+		temp.name_orig		:= official ? "+" . lifeFlat . " total maximum Life" : "+" . lifeFlat . " to maximum Life"
+		temp.name			:= official ? "+# total maximum Life" : "+# to maximum Life"
 		temp.simplifiedName	:= "xToMaximumLife"
 		temp.exception		:= true
 		temp.possibleParentSimplifiedNames := ["xToMaximumLife"]
@@ -8972,8 +8976,8 @@ CreatePseudoMods(mods, returnAllMods := False) {
 	If (manaFlat > 0) {
 		temp := {}
 		temp.values		:= [manaFlat]
-		temp.name_orig		:= "+" . manaFlat . " to maximum Mana"
-		temp.name			:= "+# to maximum Mana"
+		temp.name_orig		:= official ? "+" . manaFlat . " total maximum Mana" : "+" . manaFlat . " to maximum Mana"
+		temp.name			:= official ? "+# total maximum Mana" : "+# to maximum Mana"
 		temp.simplifiedName	:= "xToMaximumMana"
 		temp.possibleParentSimplifiedNames := ["xToMaximumMana"]
 		tempMods.push(temp)

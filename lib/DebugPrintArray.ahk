@@ -1,16 +1,16 @@
 DebugPrintArray(Array, Display=1, Level=0, guiWidth=800, guiHeight=900)
 {
 	Global DebugPrintArray
-			
+
 	Loop, % 4 + (Level*8)
 	Tabs .= A_Space
 	
-	Output := "Array`r`n" . SubStr(Tabs, 5) . "(" 
+	Output := "Array`r`n" . SubStr(Tabs, 5) . "(" 	
 	
 	If (StrLen(Array)) {
 		Array := [Array]
-	}
-	
+	}	
+
 	For Key, Value in Array
 	{
 		If (IsObject(Value))
@@ -19,21 +19,37 @@ DebugPrintArray(Array, Display=1, Level=0, guiWidth=800, guiHeight=900)
 			Value := DebugPrintArray(Value, 0, Level)
 			Level--
 		}
-			
+
 		Output .= "`r`n" . Tabs . "[" . Key . "] => " . Value
 	}
-	
+
 	Output .= "`r`n" . SubStr(Tabs, 5) . ")"
-	
 	
 	If (!Display)
 		Return Output
   
-	Gui, DebugPrintArray:+MaximizeBox +Resize
-	Gui, DebugPrintArray:Font, s9, Courier New
+  	loopBroken := false
+  	maxLines := 10000
+  	tmp := StrSplit(Output, "`n", "", maxLines)
+	If (tmp.MaxIndex() >= maxLines) {
+		Output := ""
+		loopBroken := true
+		Loop, % maxLines - 1 {
+			Output .= "`n" tmp[A_Index]
+		}
+	}
+
+	Gui, DebugPrintArray:+MaximizeBox +Resize -DPIScale
+	Gui, DebugPrintArray:Font, s8, Courier New
 	Gui, DebugPrintArray:Add, Edit, x12 y10 w%guiWidth% h%guiHeight% vDebugPrintArray ReadOnly HScroll, %Output%
+	If (loopBroken) {
+		Gui, DebugPrintArray:Add, Text, cRed x12 y+5 w%guiWidth% h20, Content not fully displayed (AHK gui limitations, only %maxLines% lines are shown)
+	}
 	windowSize := guiWidth + 20
 	windowHeight := guiHeight + 20
+	If (loopBroken) {
+		windowHeight += 20
+	}
 	Gui, DebugPrintArray:Show, w%windowSize% h%windowHeight%, DebugPrintArray
 	Gui, DebugPrintArray:+LastFound
 	ControlSend, , {Right}

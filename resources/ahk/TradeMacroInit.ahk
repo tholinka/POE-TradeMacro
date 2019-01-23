@@ -135,8 +135,8 @@ Sleep, 200
 ReadTradeConfig("", "config_trade.ini", _updateConfigWrite)
 TradeGlobals.Set("LeagueName", TradeGlobals.Get("Leagues")[TradeOpts.SearchLeague])
 
-;TradeGlobals.Set("SelectedTradeSite", "official")
-TradeGlobals.Set("SelectedTradeSite", "poetrade")
+TradeGlobals.Set("SelectedTradeSite", "official")
+;TradeGlobals.Set("SelectedTradeSite", "poetrade")
 TradeFunc_CheckIfCloudFlareBypassNeeded()
 
 ; set this variable to skip the update check in "PoE-ItemInfo.ahk"
@@ -1070,7 +1070,7 @@ TradeFunc_DownloadDataFiles() {
 	}
 	
 	; official trade site files
-	If (TradeGlobals.Get("SelectedTradeSite") = "official") {		
+	If (TradeGlobals.Get("SelectedTradeSite") = "official" and not TradeOpts.Debug) {		
 		official := {}
 		official.url := "https://www.pathofexile.com/api/trade/data/"
 		official.files := ["static", "items", "stats"]

@@ -380,6 +380,8 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 	LeagueName := TradeGlobals.Get("LeagueName")
 	Global Item, ItemData, TradeOpts, mapList, uniqueMapList, Opts
 
+	officialTrade := TradeGlobals.Get("SelectedTradeSite") = "official" ? true : false
+
 	; When redirected from AdvancedPriceCheck form the clipboard has already been parsed
 	If (!isAdvancedPriceCheckRedirect) {
 		TradeFunc_DoParseClipboard()
@@ -389,7 +391,11 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 	; cancel search if Item is empty
 	If (!Item.Name) {
 		If (TradeOpts.OpenUrlsOnEmptyItem and openSearchInBrowser) {
-			TradeFunc_OpenUrlInBrowser("https://poe.trade")
+			If (officialTrade) {
+				TradeFunc_OpenUrlInBrowser("https://www.pathofexile.com/trade/")
+			} Else {
+				TradeFunc_OpenUrlInBrowser("https://poe.trade")	
+			}			
 		}
 		return
 	}
@@ -421,8 +427,6 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 	RequestParams			:= new RequestParams_()
 	RequestParams.league	:= LeagueName
 	RequestParams.has_buyout	:= "1"
-	
-	official := false
 
 	/*
 		ignore item name in certain cases
@@ -471,14 +475,18 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 
 	/*
 		further item parsing and preparation
-		*/	
+		*/
 	If (!Item.IsUnique or Item.IsBeast) {
 		; TODO: improve this
 		If (Item.IsBeast) {
 			Item.BeastData.GenusMod 			:= {}
 			Item.BeastData.GenusMod.name_orig	:= "(beast) Genus: " Item.BeastData.Genus
 			Item.BeastData.GenusMod.name		:= RegExReplace(Item.BeastData.GenusMod.name_orig, "i)\d+", "#")
-			Item.BeastData.GenusMod.param		:= TradeFunc_FindInModGroup(TradeGlobals.Get("ModsData")["bestiary"], Item.BeastData.GenusMod)
+			If (officialTrade) {
+				; TODO
+			} Else {
+				Item.BeastData.GenusMod.param	:= TradeFunc_FindInModGroup(TradeGlobals.Get("ModsData")["bestiary"], Item.BeastData.GenusMod)	
+			}			
 		}
 		
 		preparedItem  := TradeFunc_PrepareNonUniqueItemMods(ItemData.Affixes, Item.Implicit, Item.RarityLevel, Enchantment, Corruption, Item.IsMap, Item.IsBeast)
@@ -519,7 +527,6 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 	}
 
 	If (Item.IsUnique) {
-		official := true
 		; returns mods with their ranges of the searched item if it is unique and has variable mods
 		uniqueWithVariableMods :=
 		uniqueWithVariableMods := TradeFunc_FindUniqueItemIfItHasVariableRolls(Name, Item.IsRelic)
@@ -1283,7 +1290,7 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 		create payload
 		*/
 	Payload := RequestParams.ToPayload()
-	if (official)
+	if (officialTrade)
 	{
 		RequestParams.official := true
 		Payload := RequestParams.ToPayload()
@@ -1344,7 +1351,7 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 		Html := TradeFunc_DoPoePricesRequest(ItemData.FullText, requestCurl)
 	}
 	Else If (not openSearchInBrowser) {
-		if (official)
+		if (officialTrade)
 		{
 			Html := TradeFunc_DoPostRequestOfficial(Payload, LeagueName)
 			console.log(Html)
@@ -1368,7 +1375,7 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 			}
 			Else {
 				; using GET request instead of preventing the POST request redirect and parsing the url
-				if (official)
+				if (officialTrade)
 				{
 					Html := TradeFunc_DoPostRequestOfficial(Payload, LeagueName, true)
 					parsedUrl1 := "https://www.pathofexile.com/trade/search/" LeagueName "/" Html
@@ -3767,7 +3774,13 @@ TradeFunc_PrepareNonUniqueItemMods(Affixes, Implicit, Rarity, Enchantment = fals
 	tempItem.mods	:= []
 	tempItem.mods	:= mods
 	tempItem.isBeast := isBeast
-	temp			:= TradeFunc_GetItemsPoeTradeMods(tempItem, isMap)
+	
+	If (TradeGlobals.Get("SelectedTradeSite") = "official") {
+		temp	:= TradeFunc_GetItemsTradeMods(tempItem, isMap)
+	} Else {
+		temp	:= TradeFunc_GetItemsPoeTradeMods(tempItem, isMap)	
+	}
+	
 	tempItem.mods	:= temp.mods
 	tempItem.IsUnique := false
 
@@ -3781,6 +3794,65 @@ TradeFunc_CheckIfTempModExists(needle, mods) {
 		}
 	}
 	Return false
+}
+
+TradeFunc_GetItemsTradeMods(_item, isMap = false) {
+	mods := TradeGlobals.Get("ModsData")
+	;debugprintarray(_item)
+	;debugprintarray(mods)
+
+	For i, _i in _item.mods {
+		affixLine := _i.name_orig
+
+		matches := []
+		pseudoMatch := {}
+		craftedMatch := {}
+		For k, types in mods {
+			For i, stat in types.entries {
+				unsignedName := RegExReplace(_i.name, "i)^(\+|-)")
+				match1 := (stat.text = _i.name) or (stat.text = unsignedName)
+				match2 := RegExReplace(stat.text, "i)^(\+|-)") = RegExReplace(unsignedName, "((#%?) to )", "$2 total to ")
+				match3 := RegExReplace(stat.text, "i)^(\+|-)") = RegExReplace(unsignedName, "((#%?) to )", "$2 total ")
+
+				If (match1 or match2 or match3) {
+					_m := {}
+					_m.id := stat.id
+					_m.text := stat.text
+					_m.type := stat.type
+					matches.push(_m)
+					If (_m.type = "pseudo" and not pseudoMatch.id) {
+						pseudoMatch := _m
+					}
+					If (_m.type = "crafted" and not craftedMatch.id) {
+						craftedMatch := _m
+					}
+				}
+			}
+		}
+		
+		finalMod := {}
+		For k, stat in matches {
+			If (stat.type = _i.type) {
+				finalMod := stat
+				Break
+			}
+		}
+		; fallback to pseudo mod
+		If (not finalMod.id and pseudoMatch.id) {
+			finalMod := pseudoMatch
+		}
+		; fallback to crafted mod as last resort
+		If (not finalMod.id and craftedMatch.id) {			
+			finalMod := craftedMatch
+		}
+		
+		_i.name := finalMod.text ? finalMod.text : _i.name
+		_i.param := finalMod.id
+		;debugprintarray({"matches":matches, "final":finalMod, "pseudo":pseudoMatch, "crafted":craftedMatch})
+	}
+	
+	;debugprintarray(_item)
+	Return _item
 }
 
 ; Add poe.trades mod names to the items mods to use as POST parameter
@@ -4096,8 +4168,58 @@ TradeFunc_GetModValueGivenPoeTradeMod(itemModifiers, poeTradeMod) {
 			If (RegExMatch(poeTradeMod, "i).*" ModStr "$")) {
 				Return CurrValues
 			}
-		}
+		}		
+	}
+}
+
+TradeFunc_GetModValueGivenTradeMod(itemModifiers, tradeMod) {
+	If (StrLen(tradeMod) < 1) {
+		If (TradeGlobals.Get("SelectedTradeSite") = "official") {
+			ErrorMsg := "Mod not found on pathofxeile.com/trade!"
+		} Else {
+			ErrorMsg := "Mod not found on poe.trade!"	
+		}		
+		Return ErrorMsg
+	}
+	tradeMod_ValueTypes := TradeFunc_CountValuesAndReplacedValues(tradeMod)
+
+	Loop, Parse, itemModifiers, `n, `r
+	{		
+		If StrLen(A_LoopField) = 0
+		{
+			Continue ; Not interested in blank lines
+		}		
 		
+		ModStr := ""
+		CurrValues := []
+		CurrLine_ValueTypes := TradeFunc_CountValuesAndReplacedValues(A_LoopField)		
+		CurrValue := TradeFunc_GetActualValue(A_LoopField, tradeMod_ValueTypes)
+		
+		If (CurrValue ~= "\d+") {
+			; handle value range
+			RegExMatch(CurrValue, "(\d+) ?(-|to) ?(\d+)", values)
+			If (values3) {
+				CurrValues.Push(values1)
+				CurrValues.Push(values3)
+				CurrValue := values1 " to " values3
+				ModStr := StrReplace(A_LoopField, CurrValue, "# to #")
+			}
+			; handle single value
+			Else {
+				CurrValues.Push(CurrValue)
+				ModStr := StrReplace(A_LoopField, CurrValue, "#")
+			}
+			
+			; remove negative sign since poe.trade mods are always positive
+			ModStr := RegExReplace(ModStr, "^-#", "#")
+			ModStr := StrReplace(ModStr, "+")
+			; replace multi spaces with a single one
+			ModStr := RegExReplace(ModStr, " +", " ")
+			
+			If (RegExMatch(tradeMod, "i).*" ModStr "$")) {
+				Return CurrValues
+			}
+		}		
 	}
 }
 
@@ -4158,6 +4280,46 @@ TradeFunc_CountValuesAndReplacedValues(ActualValueLine)
 	return values
 }
 
+TradeFunc_GetNonUniqueModValueGivenTradeMod(itemModifiers, poeTradeMod, ByRef keepOrigModName = false) {
+	If (StrLen(poeTradeMod) < 1) {
+		ErrorMsg := "Mod not found on pathofexile.com/trade!"
+		Return ErrorMsg
+	}
+	
+	CurrValue	:= ""
+	CurrValues:= []
+	CurrValue := GetActualValue(itemModifiers.name_orig)
+
+	If (CurrValue ~= "\d+") {
+		; handle value range
+		RegExMatch(CurrValue, "(\d+) ?(-|to) ?(\d+)", values)
+
+		If (values3) {
+			CurrValues.Push(values1)
+			CurrValues.Push(values3)
+			CurrValue := values1 " to " values3
+			ModStr := StrReplace(itemModifiers.name_orig, CurrValue, "#")
+		}
+		; handle single value
+		Else {
+			CurrValues.Push(CurrValue)
+			ModStr := StrReplace(itemModifiers.name_orig, CurrValue, "#")
+		}
+
+		ModStr := StrReplace(ModStr, "+")
+		; replace multi spaces with a single one
+		ModStr := RegExReplace(ModStr, " +", " ")
+		poeTradeMod := RegExReplace(poeTradeMod, "# ?to ? #", "#")
+		poeTradeMod := StrReplace(poeTradeMod, "+")
+
+		If (RegExMatch(poeTradeMod, "i).*" ModStr "$")) {
+			Return CurrValues
+		} Else If (RegExMatch(poeTradeMod, "i).*" itemModifiers.name_orig "$")) {
+			keepOrigModName := true
+			Return 
+		}
+	}
+}
 
 TradeFunc_GetNonUniqueModValueGivenPoeTradeMod(itemModifiers, poeTradeMod, ByRef keepOrigModName = false) {
 	If (StrLen(poeTradeMod) < 1) {
@@ -4457,6 +4619,7 @@ TradeFunc_AdvancedPriceCheckGui(advItem, Stats, Sockets, Links, UniqueStats = ""
 		ShowTooltip("Advanced search not available for this item.")
 		Return
 	}
+	officialTrade := (TradeGlobals.Get("SelectedTradeSite") = "official") ? true : false
 
 	TradeFunc_ResetGUI()
 	advItem := TradeFunc_DetermineAdvancedSearchPreSelectedMods(advItem, Stats)
@@ -4807,11 +4970,20 @@ TradeFunc_AdvancedPriceCheckGui(advItem, Stats, Sockets, Links, UniqueStats = ""
 		SetFormat, FloatFast, 5.2
 		ErrorMsg :=
 		If (advItem.IsUnique) {
-			modValues := TradeFunc_GetModValueGivenPoeTradeMod(ItemData.Affixes, advItem.mods[A_Index].param)			
+			If (officialTrade) {
+				modValues := TradeFunc_GetModValueGivenTradeMod(ItemData.Affixes, advItem.mods[A_Index].name)	
+			} Else {
+				modValues := TradeFunc_GetModValueGivenPoeTradeMod(ItemData.Affixes, advItem.mods[A_Index].param)	
+			}
 		}
 		Else {
 			useOriginalModName := false
-			modValues := TradeFunc_GetNonUniqueModValueGivenPoeTradeMod(advItem.mods[A_Index], advItem.mods[A_Index].param, useOriginalModName)
+			If (officialTrade) {
+				modValues := TradeFunc_GetNonUniqueModValueGivenTradeMod(advItem.mods[A_Index], advItem.mods[A_Index].name, useOriginalModName)
+			} Else {
+				modValues := TradeFunc_GetNonUniqueModValueGivenPoeTradeMod(advItem.mods[A_Index], advItem.mods[A_Index].param, useOriginalModName)
+			}
+			
 			If (useOriginalModName) {
 				displayName := advItem.mods[A_Index].name_orig
 			}			
@@ -5092,7 +5264,7 @@ TradeFunc_AdvancedPriceCheckGui(advItem, Stats, Sockets, Links, UniqueStats = ""
 	Gui, SelectModsGui:Add, Button, x10 y%offset% gAdvancedPriceCheckSearch hwndSearchBtnHwnd Default, &Search
 
 	; open search on poe.trade instead
-	Gui, SelectModsGui:Add, Button, x+10 yp+0 gAdvancedOpenSearchOnPoeTrade, Op&en on poe.trade
+	Gui, SelectModsGui:Add, Button, x+10 yp+0 gAdvancedOpenSearchOnPoeTrade, Op&en in browser
 
 	; override online state
 	Gui, SelectModsGui:Add, CheckBox, x+10 yp+5 vTradeAdvancedOverrideOnlineState, % "Show offline results"
@@ -5107,9 +5279,13 @@ TradeFunc_AdvancedPriceCheckGui(advItem, Stats, Sockets, Links, UniqueStats = ""
 		Gui, SelectModsGui:Add, Picture, x10 y+16, %A_ScriptDir%\resources\images\error.png
 		Gui, SelectModsGui:Add, Text, x+10 yp+2 cRed,One or more mods couldn't be found on poe.trade
 	}
-	Gui, SelectModsGui:Add, Text, x10 y+14 cGreen, Please support poe.trade by disabling adblock
-	Gui, SelectModsGui:Add, Link, x+5 yp+0 cBlue, <a href="https://poe.trade">visit</a>
-	Gui, SelectModsGui:Add, Text, x+10 yp+0 cGray, (Use Alt + S/E to submit a button)
+	If (officialTrade) {
+		Gui, SelectModsGui:Add, Text, x10 y+14 cGray, (Use Alt + S/E to submit a button)
+	} Else {
+		Gui, SelectModsGui:Add, Text, x10 y+14 cGreen, Please support poe.trade by disabling adblock
+		Gui, SelectModsGui:Add, Link, x+5 yp+0 cBlue, <a href="https://poe.trade">visit</a>
+		Gui, SelectModsGui:Add, Text, x+10 yp+0 cGray, (Use Alt + S/E to submit a button)
+	}
 	Gui, SelectModsGui:Add, Link, x10 yp+18 cBlue, <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=4ZVTWJNH6GSME">Support PoE-TradeMacro</a>
 
 	windowWidth := modGroupBox + 40 + 5 + 45 + 10 + 45 + 10 + 40 + 5 + 45 + 10 + 65
