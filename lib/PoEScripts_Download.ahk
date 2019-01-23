@@ -91,7 +91,7 @@
 			commandData .= " -" redirect "ks --compressed "
 			If (requestType = "GET") {				
 				;commandHdr  .= " -s" redirect " -D - -o /dev/null " ; unix
-				commandHdr  .= " -s" redirect " -D - -o nul " ; windows
+				commandHdr  .= " -sk" redirect " -D - -o nul " ; windows
 			} Else {
 				commandHdr  .= " -I" redirect "ks "
 			}

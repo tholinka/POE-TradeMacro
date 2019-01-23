@@ -243,7 +243,7 @@ TradeFunc_SetCurrencyRatio() {
 		Return
 	}
 	
-	tags := TradeGlobals.Get("CurrencyTags")	
+	tags := TradeGlobals.Get("StaticItemList")	
 	;debugprintarray(tags)
 	
 	windowPosY := Round(A_ScreenHeight / 2)
@@ -2262,7 +2262,7 @@ TradeFunc_DoCurrencyRequest(currencyName = "", openSearchInBrowser = false, init
 	UserAgent   := TradeGlobals.Get("UserAgent")
 	cfduid      := TradeGlobals.Get("cfduid")
 	cfClearance := TradeGlobals.Get("cfClearance")
-
+	
 	If (init) {
 		Url := "http://currency.poe.trade/"
 		SplashUI.SetSubMessage("Looking up poe.trade currency IDs...")
@@ -5994,7 +5994,7 @@ SelectCurrencyRatioSubmit:
 Return
 
 TradeFunc_SelectCurrencyRatio(typeSell, amountSell, typeReceive, amountReceive, ratioReceive, isPreview = false) {
-	tags := TradeGlobals.Get("CurrencyTags")
+	tags := TradeGlobals.Get("StaticItemList")
 	
 	id := ""
 	For key, category in tags {

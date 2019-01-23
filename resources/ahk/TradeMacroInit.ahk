@@ -10,11 +10,8 @@
 
 SetWorkingDir, %A_ScriptDir%
 
-;#Include, %A_ScriptDir%\lib\JSON.ahk				; https://autohotkey.com/boards/viewtopic.php?f=6&t=53
 #Include, %A_ScriptDir%\lib\Class_Console.ahk		; Console https://autohotkey.com/boards/viewtopic.php?f=6&t=2116
-;#Include, %A_ScriptDir%\lib\DebugPrintArray.ahk
 #Include, %A_ScriptDir%\lib\AssociatedProgram.ahk
-;#Include, %A_ScriptDir%\lib\EasyIni.ahk
 #Include, %A_ScriptDir%\lib\ConvertKeyToKeyCode.ahk
 #Include, %A_ScriptDir%\resources\VersionTrade.txt
 
@@ -41,7 +38,6 @@ argumentSkipSplash = %6%
 If (not argumentSkipSplash) {
 	TradeFunc_StartSplashScreen(TradeReleaseVersion)
 }
-SplashUI.SetSubMessage("Parsing data files...")
 #Include, %A_ScriptDir%\resources\ahk\jsonData.ahk
 
 class TradeGlobals {
@@ -73,7 +69,6 @@ global SavedTradeSettings := false
 SplashUI.SetSubMessage("Reading PoE-TradeMacro config...")
 TradeOpts_New := class_EasyIni(A_ScriptDir "\resources\default_UserFiles\config_trade.ini")
 MakeOldTradeOptsAndVars(TradeOpts_New)
-
 
 ; Check if Temp-Leagues are active and set defaultLeague accordingly
 TradeGlobals.Set("TempLeagueIsRunning", TradeFunc_CheckIfTempLeagueIsRunning())
@@ -140,6 +135,8 @@ Sleep, 200
 ReadTradeConfig("", "config_trade.ini", _updateConfigWrite)
 TradeGlobals.Set("LeagueName", TradeGlobals.Get("Leagues")[TradeOpts.SearchLeague])
 
+;TradeGlobals.Set("SelectedTradeSite", "official")
+TradeGlobals.Set("SelectedTradeSite", "poetrade")
 TradeFunc_CheckIfCloudFlareBypassNeeded()
 
 ; set this variable to skip the update check in "PoE-ItemInfo.ahk"
@@ -152,22 +149,10 @@ firstUpdateCheck := false
 If (TradeOpts.AlternativeCurrencySearch) {
 	GoSub, ReadPoeNinjaCurrencyData
 }
-TradeGlobals.Set("VariableUniqueData", TradeUniqueData)
-TradeGlobals.Set("VariableRelicData",  TradeRelicData)
-TradeGlobals.Set("ModsData", TradeModsData)
-TradeGlobals.Set("CurrencyTags", TradeCurrencyTags)
-
-TradeGlobals.Set("CraftingData", TradeFunc_ReadCraftingBases())
-TradeGlobals.Set("EnchantmentData", TradeFunc_ReadEnchantments())
-TradeGlobals.Set("CorruptedModsData", TradeFunc_ReadCorruptions())
-TradeGlobals.Set("CurrencyIDs", object := {})
 TradeGlobals.Set("FirstSearchTriggered", false)
 
-; get currency ids from currency.poe.trade
-TradeFunc_DoCurrencyRequest("", false, true)
-If (TradeOpts.DownloadDataFiles and not TradeOpts.Debug) {
-	TradeFunc_DownloadDataFiles()
-}
+TradeFunc_DownloadDataFiles()
+TradeFunc_ParseDataFiles()
 
 CreateTradeSettingsUI()
 If (_updateConfigWrite) {
@@ -857,9 +842,9 @@ TradeFunc_GetDelimitedLeagueList() {
 
 TradeFunc_GetDelimitedCurrencyListString() {
 	CurrencyList := ""
-	CurrencyTemp := TradeGlobals.Get("CurrencyIDs")
-	CurrencyTemp := TradeCurrencyNames.eng
-	
+	;CurrencyTemp := TradeGlobals.Get("CurrencyIDs")
+	CurrencyTemp := TradeGlobals.Get("CurrencyNames").eng	
+
 	For currName, currID in CurrencyTemp {
 		name := RegExReplace(currName,  "i)_", " ")
 		; only use real currency items here
@@ -1011,93 +996,203 @@ TradeFunc_CheckBrowserPath(path, showMsg) {
 	}
 }
 
-; parse poe.trades gem names, other item types from the search form and available leagues
+; parse trade site gem names, other item types from the search form and available leagues
 TradeFunc_ParseSearchFormOptions() {
-	FileRead, html, %A_ScriptDir%\temp\poe_trade_search_form_options.txt
+	If (TradeGlobals.Get("SelectedTradeSite") != "official") {
+		/* poe.trade
+		*/
+		FileRead, html, %A_ScriptDir%\temp\trade_search_form_options.txt
 
-	RegExMatch(html, "i)(var)?\s*(items_types\s*=\s*{.*?})", types)
-	itemTypes := RegExReplace(types2, "i)items_types\s*=", "{""items_types"" :")
-	itemTypes .= "}"
-	parsedJSON := JSON.Load(itemTypes)
+		RegExMatch(html, "i)(var)?\s*(items_types\s*=\s*{.*?})", types)
+		itemTypes := RegExReplace(types2, "i)items_types\s*=", "{""items_types"" :")
+		itemTypes .= "}"
+		parsedJSON := JSON.Load(itemTypes)
 
-	availableLeagues := []
-	RegExMatch(html, "isU)<select.*name=""league"".*<\/select>", leagues)
-	Pos := 0
-	While Pos := RegExMatch(leagues, "iU)option.*value=""(.*)"".*>", option, Pos + (StrLen(option) ? StrLen(option) : 1)) {
-		availableLeagues.push(option1)
+		availableLeagues := []
+		RegExMatch(html, "isU)<select.*name=""league"".*<\/select>", leagues)
+		Pos := 0
+		While Pos := RegExMatch(leagues, "iU)option.*value=""(.*)"".*>", option, Pos + (StrLen(option) ? StrLen(option) : 1)) {
+			availableLeagues.push(option1)
+		}
+		
+		exactCurrencyOptions := {}
+		exactCurrencyOptions.poetrade := {}
+		RegExMatch(html, "i)(<select.*?name=""buyout_currency"".*<\/select>)", currencies)
+		Pos := 0
+		While Pos := RegExMatch(currencies1, "iU)option.*value=""(.*)"".*>(.*)<\/option>", option, Pos + (StrLen(option) ? StrLen(option) : 1)) {
+			If (not RegExMatch(option1, "i)^(1|0)$") and option1) {
+				exactCurrencyOptions.poetrade[RegExReplace(option2, "i)&#39;", "'")] := option1	
+			}		
+		}	
+
+		TradeGlobals.Set("ItemTypeList", parsedJSON.items_types)
+		TradeGlobals.Set("GemNameList", parsedJSON.items_types.gem)
+		TradeGlobals.Set("ExactCurrencySearchOptions", exactCurrencyOptions)
+		TradeGlobals.Set("AvailableLeagues", availableLeagues)
+		itemTypes :=
+		availableLeagues :=
+		
+		FileDelete, %A_ScriptDir%\temp\trade_search_form_options.txt
 	}
-	
-	exactCurrencyOptions := {}
-	exactCurrencyOptions.poetrade := {}
-	RegExMatch(html, "i)(<select.*?name=""buyout_currency"".*<\/select>)", currencies)
-	Pos := 0
-	While Pos := RegExMatch(currencies1, "iU)option.*value=""(.*)"".*>(.*)<\/option>", option, Pos + (StrLen(option) ? StrLen(option) : 1)) {
-		If (not RegExMatch(option1, "i)^(1|0)$") and option1) {
-			exactCurrencyOptions.poetrade[RegExReplace(option2, "i)&#39;", "'")] := option1	
-		}		
-	}	
+	Else {
+		/* official trade
+		*/
+		; TODO
+		;TradeGlobals.Set("ItemTypeList", parsedJSON.items_types)
+		;TradeGlobals.Set("GemNameList", parsedJSON.items_types.gem)
+		;TradeGlobals.Set("ExactCurrencySearchOptions", exactCurrencyOptions)
+		;TradeGlobals.Set("AvailableLeagues", availableLeagues)
+	}
 
-	TradeGlobals.Set("ItemTypeList", parsedJSON.items_types)
-	TradeGlobals.Set("GemNameList", parsedJSON.items_types.gem)
-	TradeGlobals.Set("ExactCurrencySearchOptions", exactCurrencyOptions)
-	TradeGlobals.Set("AvailableLeagues", availableLeagues)
-	itemTypes :=
-	availableLeagues :=
-
-	FileDelete, %A_ScriptDir%\temp\poe_trade_search_form_options.txt
 }
 
-TradeFunc_DownloadDataFiles() {	
-	SplashUI.SetSubMessage("Downloading latest data files from github...")
+TradeFunc_DownloadDataFiles() {
+	sites := []
 	
-	; disabled while using debug mode
-	owner	:= TradeGlobals.Get("GithubUser", "POE-TradeMacro")
-	repo 	:= TradeGlobals.Get("GithubRepo", "POE-TradeMacro")
-	url		:= "https://raw.githubusercontent.com/" . owner . "/" . repo . "/master/data_trade/"
 	dir		= %A_ScriptDir%\data_trade
 	bakDir	= %A_ScriptDir%\data_trade\old_data_files
-	files	:= ["boot_enchantment_mods.txt", "crafting_bases.txt", "glove_enchantment_mods.txt", "helmet_enchantment_mods.txt"
-				, "mods.json", "uniques.json", "relics.json", "item_bases_armour.json", "item_bases_weapon.json"]
+	
+	postData		:= ""
+	reqHeaders	:= []
+	options		:= "`n" "RequestType: GET"
+	reqHeaders.push("User-Agent: Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36")
+	
+	If (TradeOpts.DownloadDataFiles and not TradeOpts.Debug) {
+		; github files
+		github	:= {}
+		owner	:= TradeGlobals.Get("GithubUser", "POE-TradeMacro")
+		repo 	:= TradeGlobals.Get("GithubRepo", "POE-TradeMacro")
+		github.url := "https://raw.githubusercontent.com/" . owner . "/" . repo . "/master/data_trade/"
+		github.files := ["boot_enchantment_mods.txt", "crafting_bases.txt", "glove_enchantment_mods.txt", "helmet_enchantment_mods.txt"
+					, "mods.json", "uniques.json", "relics.json", "item_bases_armour.json", "item_bases_weapon.json"]
+		github.message := "Downloading latest data files from github..."
+		sites.push(github)
+	}
+	
+	; official trade site files
+	If (TradeGlobals.Get("SelectedTradeSite") = "official") {		
+		official := {}
+		official.url := "https://www.pathofexile.com/api/trade/data/"
+		official.files := ["static", "items", "stats"]
+		official.fileEndings := ".json"
+		official.message := "Downloading latest data files from the official trade site..."
+		sites.push(official)
+	}
+	
+	For key, val in sites {
+		SplashUI.SetSubMessage(val.message)
+		; create .bak files and download (overwrite) data files
+		; if downloaded file exists move .bak-file to backup folder, otherwise restore .bak-file
+		Loop % val.files.Length() {
+			file := val.files[A_Index]
+			If (StrLen(val.fileEndings)) {
+				fileEnding := val.fileEndings
+				filePath = %dir%\%file%%fileEnding%
+			} Else {
+				filePath = %dir%\%file%
+			}
 
-	; create .bak files and download (overwrite) data files
-	; if downloaded file exists move .bak-file to backup folder, otherwise restore .bak-file
-	Loop % files.Length() {
-		file := files[A_Index]
-		filePath = %dir%\%file%
-		FileCopy, %filePath%, %filePath%.bak
-		output := PoEScripts_Download(url . file, postData := "", ioHdr := reqHeaders := "", options := "", false, false, false, "", reqHeadersCurl)
-		If (A_Index = 1) {
-			logMsg := "Data file download from " url "...`n`n" "cURL command:`n" reqHeadersCurl "`n`nAnswer:`n" ioHdr
-			WriteToLogFile(logMsg, "StartupLog.txt", "PoE-TradeMacro")
-		}
+			FileCopy, %filePath%, %filePath%.bak
+			output := PoEScripts_Download(val["url"] . file, postData, ioHdr := reqHeaders, options, false, false, false, "", reqHeadersCurl)			
+			If (A_Index = 1) {
+				logMsg := "Data file download from " val.url "...`n`n" "cURL command:`n" reqHeadersCurl "`n`nAnswer:`n" ioHdr
+				WriteToLogFile(logMsg, "StartupLog.txt", "PoE-TradeMacro")
+			}
 
-		FileDelete, %filePath%
-		FileAppend, %output%, %filePath%
+			FileDelete, %filePath%
+			FileAppend, %output%, %filePath%
 
-		Sleep,50
-		If (FileExist(filePath) and not ErrorLevel) {
-			FileMove, %filePath%.bak, %bakDir%\%file%
-		}
-		Else {
-			FileMove, %dir%\%file%.bak, %dir%\%file%
-		}
-		ErrorLevel := 0
+			Sleep,50
+			If (FileExist(filePath) and not ErrorLevel) {
+				FileMove, %filePath%.bak, %bakDir%\%file%
+			}
+			Else {
+				FileMove, %dir%\%file%.bak, %dir%\%file%
+			}
+			ErrorLevel := 0
+		}		
 	}
 	FileDelete, %dir%\*.bak
 }
 
+TradeFunc_ParseDataFiles() {
+	SplashUI.SetSubMessage("Parsing data files...")
+	
+	; Parse the unique items data
+	TradeUniqueData := ReadJSONDataFromFile(A_ScriptDir "\data_trade\uniques.json", "uniques")
+	; Parse the unique relic items data
+	TradeRelicData := ReadJSONDataFromFile(A_ScriptDir "\data_trade\relics.json", "relics")
+	; Parse fallback currency IDs
+	TradeCurrencyIDsFallback := ReadJSONDataFromFile(A_ScriptDir "\data_trade\currencyIDs_Fallback.json")
+	
+	TradeGlobals.Set("VariableUniqueData", TradeUniqueData)
+	TradeGlobals.Set("VariableRelicData",  TradeRelicData)
+
+	TradeGlobals.Set("CraftingData", TradeFunc_ReadCraftingBases())
+	TradeGlobals.Set("EnchantmentData", TradeFunc_ReadEnchantments())
+	TradeGlobals.Set("CorruptedModsData", TradeFunc_ReadCorruptions())
+	TradeGlobals.Set("CurrencyIDs", object := {})
+	
+	If (TradeGlobals.Get("SelectedTradeSite") = "official") {
+		_items := ReadJSONDataFromFile(A_ScriptDir "\data_trade\items.json")
+		TradeGlobals.Set("ItemList", _items.result)
+		
+		_static := ReadJSONDataFromFile(A_ScriptDir "\data_trade\static.json")
+		TradeGlobals.Set("StaticItemList", _static.result)
+		
+		_stats := ReadJSONDataFromFile(A_ScriptDir "\data_trade\stats.json")
+		TradeGlobals.Set("ModsData", _stats.result)
+	}
+	Else {
+		; Parse the poe.trade mods
+		TradeModsData := ReadJSONDataFromFile(A_ScriptDir "\data_trade\mods.json", "mods")
+		TradeGlobals.Set("ModsData", TradeModsData)		
+		
+		; Parse currency names (in-game names mapped to poe.trade names)
+		TradeCurrencyNames := ReadJSONDataFromFile(A_ScriptDir "\data_trade\currencyNames.json", "currencyNames")
+		TradeGlobals.Set("CurrencyNames", TradeCurrencyNames)
+		
+		; Parse the currency_tags data
+		TradeCurrencyTags := ReadJSONDataFromFile(A_ScriptDir "\data_trade\currency_tags.json", "tags")
+		TradeGlobals.Set("StaticItemList", TradeCurrencyTags)		
+
+		; get currency ids from currency.poe.trade
+		TradeFunc_DoCurrencyRequest("", false, true)
+	}	
+}
+
 TradeFunc_CheckIfCloudFlareBypassNeeded() {
-	SplashUI.SetSubMessage("Testing connection to poe.trade...")
 	; call this function without parameters to access poe.trade without cookies
 	; if it succeeds we don't need any cookies
-	If (!TradeFunc_TestCloudflareBypass("http://poe.trade", "", "", "", false, "PreventErrorMsg")) {
+	success := 
+	If (TradeGlobals.Get("SelectedTradeSite") = "official") {
+		SplashUI.SetSubMessage("Testing connection to pathofexile.com/trade...")
+		success := TradeFunc_TestCloudflareBypass("https://www.pathofexile.com/trade", "", "", "", false, "PreventErrorMsg")
+	}
+	Else {
+		SplashUI.SetSubMessage("Testing connection to poe.trade...")
+		success := TradeFunc_TestCloudflareBypass("http://poe.trade", "", "", "", false, "PreventErrorMsg")
+	}	
+	
+	If (!success) {
 		TradeFunc_ReadCookieData()
 	}
 }
 
 TradeFunc_ReadCookieData() {
+	selectedTradeSite := TradeGlobals.Get("SelectedTradeSite")
+	siteName := ""
+	siteUrl := ""
+	If (selectedTradeSite = "official") {
+		siteName := "pathofexile.com/trade"
+		siteUrl := "https://www.pathofexile.com/trade"
+	} Else {
+		siteName := "poe.trade"
+		siteUrl := "http://poe.trade"
+	}
+	
 	If (!TradeOpts.UseManualCookies) {
-		SplashUI.SetSubMessage("Reading user-agent and cookies from poe.trade, this can take`na few seconds if your Internet Explorer doesn't have the cookies cached.")
+		SplashUI.SetSubMessage("Reading user-agent and cookies from " siteName ", this can take`na few seconds if your Internet Explorer doesn't have the cookies cached.")
 
 		If (TradeOpts.DeleteCookies) {
 			TradeFunc_ClearWebHistory()
@@ -1189,7 +1284,7 @@ TradeFunc_ReadCookieData() {
 	}
 	Else {
 		; use useragent/cookies from settings instead
-		SplashTextOn, 500, 20, PoE-TradeMacro, Testing CloudFlare bypass using manual set user-agent/cookies.
+		SplashUI.SetSubMessage("Testing CloudFlare bypass using manual set user-agent/cookies...")
 		TradeGlobals.Set("UserAgent", TradeOpts.UserAgent)
 		TradeGlobals.Set("cfduid", TradeOpts.CfdUid)
 		TradeGlobals.Set("cfClearance", TradeOpts.CfClearance)
@@ -1210,10 +1305,10 @@ TradeFunc_ReadCookieData() {
 		cookiesSuccessfullyRead++
 	}
 
-	; test connection to poe.trade
+	; test connection to trade site
 	If (!CookieErrorLevel) {
 		accessForbidden := ""
-		If (!TradeFunc_TestCloudflareBypass("http://poe.trade", TradeGlobals.Get("UserAgent"), TradeGlobals.Get("cfduid"), TradeGlobals.Get("cfClearance"), true, "", accessForbidden)) {
+		If (!TradeFunc_TestCloudflareBypass(siteUrl, TradeGlobals.Get("UserAgent"), TradeGlobals.Get("cfduid"), TradeGlobals.Get("cfClearance"), true, "", accessForbidden)) {
 			BypassFailed := 1
 		}
 	}
@@ -1248,7 +1343,7 @@ TradeFunc_ReadCookieData() {
 		; something went wrong while testing the connection to poe.trade
 		Else If (BypassFailed or CookieErrorLevel) {
 			If (StrLen(accessForbidden)) {
-				Gui, CookieWindow:Add, Text, cRed, Bypassing poe.trades CloudFlare protection failed! Reason: Access forbidden.
+				Gui, CookieWindow:Add, Text, cRed, Bypassing %siteName% CloudFlare protection failed! Reason: Access forbidden.
 				Gui, CookieWindow:Add, Text, , - Cookies and user-agent were retrieved.`n- Lowered/disabled Internet Explorer security settings can cause this to fail.
 				cookiesDeleted := (TradeOpts.DeleteCookies and not TradeOpts.UseManualCookies) ? "Cookies were deleted on script start." : ""
 				If (StrLen(cookiesDeleted)) {
@@ -1268,7 +1363,7 @@ TradeFunc_ReadCookieData() {
 				Gui, CookieWindow:Add, Button, gOpenPageInInternetExplorer, Open IE
 				Gui, CookieWindow:Add, Button, x+10 yp+0 gReloadScriptAtCookieError, Reload macro (challenge has to be solved)
 			} Else {
-				Gui, CookieWindow:Add, Text, cRed, Accessing poe.trade using cURL failed!
+				Gui, CookieWindow:Add, Text, cRed, Accessing %siteName% using cURL failed!
 			}
 
 			; something went wrong while reading the cookies
@@ -1427,6 +1522,14 @@ TradeFunc_GetLatestDotNetInstallation() {
 }
 
 TradeFunc_TestCloudflareBypass(Url, UserAgent="", cfduid="", cfClearance="", useCookies=false, PreventErrorMsg = "", ByRef forbiddenAccess = "") {
+	selectedTradeSite := TradeGlobals.Get("SelectedTradeSite")
+	siteName := ""
+	If (selectedTradeSite = "official") {
+		siteName := "pathofexile.com/trade"
+	} Else {
+		siteName := "poe.trade"
+	}
+	
 	postData		:= ""
 	options		:= ""
 	options		.= "`n" PreventErrorMsg
@@ -1454,20 +1557,25 @@ TradeFunc_TestCloudflareBypass(Url, UserAgent="", cfduid="", cfClearance="", use
 	html := PoEScripts_Download(Url, ioData := postData, ioHdr := reqHeaders, options, false, false, false, "", reqHeadersCurl, handleAccessForbidden := false)
 	logMsg := "Testing CloudFlare bypass, connecting to " url "...`n`n" "cURL command:`n" reqHeadersCurl "`n`nAnswer:`n" ioHdr
 	WriteToLogFile(logMsg, "StartupLog.txt", "PoE-TradeMacro")
+
+	If (TradeGlobals.Get("SelectedTradeSite") = "official") {
+		RegExMatch(html, "i)Path of Exile", match)
+	} Else {
+		; pathofexile.com link in page footer (forum thread)
+		RegExMatch(html, "i)pathofexile", match)
+	}
 	
-	; pathofexile.com link in page footer (forum thread)
-	RegExMatch(html, "i)pathofexile", match)
 	RegExMatch(Trim(html), "i)'(\d{1,3})'$", appendedCode)
 	If (match) {
-		FileDelete, %A_ScriptDir%\temp\poe_trade_search_form_options.txt
-		FileAppend, %html%, %A_ScriptDir%\temp\poe_trade_search_form_options.txt, utf-8
+		FileDelete, %A_ScriptDir%\temp\trade_search_form_options.txt
+		FileAppend, %html%, %A_ScriptDir%\temp\trade_search_form_options.txt, utf-8
 		TradeFunc_ParseSearchFormOptions()
 		Return 1
 	}
 	Else If (appendedCode1 = "000") {
 		SplashUI.DestroyUI()		
-		msg := "Test request to poe.trade timed out (was aborted by the client). You can continue the script but you may experience issues when making any search requests."
-		msg .= "`n`n" "This is most likely caused by poe.trade server issues."
+		msg := "Test request to " siteName " timed out (was aborted by the client). You can continue the script but you may experience issues when making any search requests."
+		msg .= "`n`n" "This is most likely caused by " siteName " server issues."
 		msg .= "`n`n" "You can change the timout for these requests (currently " TradeOpts.CurlTimeout "s) in the settings menu -> ""TradeMacro"" tab -> ""General"" section."
 		Msgbox, 0x1030, PoE-TradeMacro, % msg
 		Return 1

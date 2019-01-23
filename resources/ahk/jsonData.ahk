@@ -10,24 +10,6 @@ If (argumentIsMergedScript != "isMergedScript") {
 	FileCreateDir, %A_ScriptDir%\temp
 }
 
-; Parse the unique items data
-global TradeUniqueData := ReadJSONDataFromFile(A_ScriptDir "\data_trade\uniques.json", "uniques")
-
-; Parse the unique relic items data
-global TradeRelicData := ReadJSONDataFromFile(A_ScriptDir "\data_trade\relics.json", "relics")
-
-; Parse the poe.trade mods
-global TradeModsData := ReadJSONDataFromFile(A_ScriptDir "\data_trade\mods.json", "mods")
-
-; Parse currency names (in-game names mapped to poe.trade names)
-global TradeCurrencyNames := ReadJSONDataFromFile(A_ScriptDir "\data_trade\currencyNames.json", "currencyNames")
-
-; Parse fallback currency IDs
-global TradeCurrencyIDsFallback := ReadJSONDataFromFile(A_ScriptDir "\data_trade\currencyIDs_Fallback.json")
-
-; Parse the unique items data
-global TradeCurrencyTags := ReadJSONDataFromFile(A_ScriptDir "\data_trade\currency_tags.json", "tags")
-
 SplashUI.SetSubMessage("Parsing leagues from GGGs API...")
 ; Download and parse the current leagues
 postData		:= ""
