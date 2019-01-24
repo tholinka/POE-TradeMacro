@@ -1363,7 +1363,7 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 		}
 	}
 
-	If (openSearchInBrowser) { ;*[TradeMacro]
+	If (openSearchInBrowser) {
 		If (TradeOpts.PoENinjaSearch and (url := TradeFunc_GetPoENinjaItemUrl(TradeOpts.SearchLeague, Item))) {
 			TradeFunc_OpenUrlInBrowser(url)
 			If (not TradeOpts.CopyUrlToClipboard) {
@@ -1377,8 +1377,8 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 				; using GET request instead of preventing the POST request redirect and parsing the url
 				if (officialTrade)
 				{
-					Html := TradeFunc_DoPostRequestOfficial(Payload, LeagueName, true)
-					parsedUrl1 := "https://www.pathofexile.com/trade/search/" LeagueName "/" Html
+					searchId := TradeFunc_DoPostRequestOfficial(Payload, LeagueName, true)
+					parsedUrl1 := "https://www.pathofexile.com/trade/search/" LeagueName "/" searchId
 				}
 				Else
 				{
@@ -1438,15 +1438,100 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 			Item.UsedInSearch.SearchType := "Default"
 		}
 		
-		; add second request for payload_alt (exact currency search fallback request)		
-		searchResults := TradeFunc_ParseHtmlToObj(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
-		If (not searchResults.results and StrLen(Payload_alt)) {
-			Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
-			ParsedData := TradeFunc_ParseHtml(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+		If (officialTrade)
+		{
+			ParsedData := []
+			fetchurl := "https://www.pathofexile.com/api/trade/fetch/" ; not sure if queryid is necessary
+			NoOfItemsToShow := TradeOpts.ShowItemResults
+			if (NoOfItemsToShow > Html.total)
+			{
+				NoOfItemsToShow := Html.total
+			}
+			
+			i := 1
+			j := 0
+			
+			results := []
+			accounts := {}
+			
+			while ((j*10 + i) <= NoOfItemsToShow)
+			{
+				fetchdata := ""
+				
+				; fetch 10 items
+				while ((j*10 + i) <= NoOfItemsToShow)
+				{
+					_e := Mod(i, 11)
+					
+					if (_e = 0)
+						break
+					
+					if (_e != 1) 
+					{
+						fetchdata .= "," Html.result[j*10+i]
+					}
+					else
+					{
+						fetchdata .= "" Html.result[j*10+i]
+					}
+					
+					i++
+				}
+				
+				i := 1
+				j++
+				res := {}
+				try {
+					res := JSON.Load(TradeFunc_FetchData(fetchurl fetchdata))
+				}
+				catch err
+				{
+					
+				}
+				; loop over current 10? results
+				Loop, % res.result.MaxIndex() {
+					r := {}
+					
+					r.accountName := res.result[A_Index].listing.account.name
+					
+					If (TradeOpts.RemoveMultipleListingsFromSameAccount and not isItemAgeRequest) {
+						If (accounts[r.accountName]) {
+							if (NoOfItemsToShow < Html.total-1)
+							{
+								;NoOfItemsToShow += 1 ; TODO
+								accounts[r.accountName] += 1
+								;continue
+							}
+						}
+						Else {
+							accounts[r.accountName] := 1
+						}
+					}
+					;r.afk	:= true
+					r.ign := res.result[A_Index].listing.account.lastCharacterName
+					r.buyoutPrice := res.result[A_Index].listing.price.amount
+					r.buyoutCurrency := res.result[A_Index].listing.price.currency
+					results.push(r)
+				}
+			}
+	
+			ParsedData := {}
+			ParsedData.results := results
+			ParsedData.accounts := accounts
+			debugprintarray(ParsedData)
 		}
-		Else {
-			ParsedData := TradeFunc_ParseHtml(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)	
-		}		
+		Else
+		{
+			; add second request for payload_alt (exact currency search fallback request)		
+			searchResults := TradeFunc_ParseHtmlToObj(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+			If (not searchResults.results and StrLen(Payload_alt)) {
+				Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
+				ParsedData := TradeFunc_ParseHtml(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
+			}
+			Else {
+				ParsedData := TradeFunc_ParseHtml(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)	
+			}
+		}
 
 		SetClipboardContents("")
 		ShowToolTip("")
@@ -1454,6 +1539,24 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 	}
 
 	TradeGlobals.Set("AdvancedPriceCheckItem", {})
+}
+
+TradeFunc_FetchData(url) {
+	options	:= ""
+	options	.= "`n" "ReturnHeaders: skip"
+	options	.= "`n" "TimeOut: " TradeOpts.CurlTimeout
+	
+	reqHeaders	:= []
+	
+	reqHeaders.push("Connection: keep-alive")
+	reqHeaders.push("Content-Type: application/json")
+	;reqHeaders.push("Accept-Encoding: gzip")
+	;reqHeaders.push("Accept: application/json")
+		
+	html := PoEScripts_Download(url, "", reqHeaders, options, false)
+	;console.log(html)
+	
+	Return, html
 }
 
 TradeFunc_DoPostRequestOfficial(payload, league, openSearchInBrowser = false) {
@@ -1491,7 +1594,6 @@ TradeFunc_DoPostRequestOfficial(payload, league, openSearchInBrowser = false) {
 	*/
 	
 	html := PoEScripts_Download(url, postData, reqHeaders, options, false)
-	console.log(html)
 	
 	If (TradeOpts.Debug) {
 		FileDelete, %A_ScriptDir%\temp\DebugSearchOutput.html
@@ -1507,7 +1609,6 @@ TradeFunc_DoPostRequestOfficial(payload, league, openSearchInBrowser = false) {
 	
 	Return, html ; object
 }
-
 
 TradeFunc_GetPoENinjaItemUrl(league, item) {	
 	url := "https://poe.ninja/"
@@ -3339,16 +3440,18 @@ class RequestParams_ {
 	NewPayload()
 	{
 		query := {}
-		query.name := this.name
-		query.type := this.xbase
+		query.status["option"] := "online"
+		if (StrLen(this.name))
+			query.name := this.name
+		if (StrLen(this.xbase))
+			query.type := this.xbase
 		
-		;disabled while eru translates mods to their ids
-		/*query.stats := []
+		query.stats := []
 		Loop, % this.modGroups.MaxIndex() {
 			query.stats.push(this.modGroups[A_Index].toObj())
 			;stat.id := "pseudo.pseudo_total_attack_speed"
 		}
-		*/
+		
 		
 		query.filters := {}
 		
@@ -3370,21 +3473,14 @@ class RequestParams_ {
 		socket_filters := {}
 		socket_filters.filters := {}
 		if (StrLen(this.sockets_min))
-		{
 			socket_filters.filters.sockets["min"] := 0 + this.sockets_min
-		}
 		if (StrLen(this.sockets_max))
-		{
 			socket_filters.filters.sockets["max"] := 0 + this.sockets_max
-		}
+		
 		if (StrLen(this.link_min))
-		{
 			socket_filters.filters.links["min"] := 0 + this.link_min
-		}
 		if (StrLen(this.link_max))
-		{
 			socket_filters.filters.links["max"] := 0 + this.link_max
-		}
 		;todo
 		
 		misc_filters := {}
@@ -3427,6 +3523,7 @@ class RequestParams_ {
 		
 		x := {}
 		x.query := query
+		x.sort["price"] := "asc"
 		
 		p := JSON.Dump(x)
 		console.log(p)
@@ -3502,7 +3599,8 @@ class _ParamModGroup {
 		stat_group.type := this.group_type
 		stat_group.filters := []
 		Loop % this.ModArray.Length() {
-			stat_group.filters.push(this.ModArray[A_Index].ToObj())
+			if (StrLen(this.ModArray[A_Index].mod_name)) ; avoid errors
+				stat_group.filters.push(this.ModArray[A_Index].ToObj())
 		}
 		return stat_group
 	}

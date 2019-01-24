@@ -172,7 +172,7 @@
 		jsonObj := JSON.Load(ioHdr)
 		if (requestType = "POST")
 		{
-			console.log(ioHdr)
+			;console.log(ioHdr)
 			jsonObj := JSON.Load(ioHdr)
 			Return jsonObj
 		}
