@@ -1557,7 +1557,7 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 		
 		; add second request for payload_alt (exact currency search fallback request)		
 		searchResults := TradeFunc_ParseHtmlToObj(Html, Payload, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
-		If (not searchResults.results and StrLen(Payload_alt)) {
+		If (not searchResults.results.length and StrLen(Payload_alt)) {
 			Html := TradeFunc_DoPostRequest(Payload_alt, openSearchInBrowser)
 			ParsedData := TradeFunc_ParseHtml(Html, Payload_alt, iLvl, Enchantment, isItemAgeRequest, isAdvancedPriceCheckRedirect)
 		}
@@ -3252,7 +3252,7 @@ TradeFunc_ParseHtml(html, payload, iLvl = "", ench = "", isItemAgeRequest = fals
 		Title .= "`n"
 	}
 	Title .= (itemsListed > 0) ? "" : "`nNo item found.`n"
-	Title .= (isAdvancedSearch) ? "" : "`n`n" "Use Ctrl + Alt + D (default) instead for a more thorough search."
+	Title .= (isAdvancedSearch) ? "" : "`n`n" "Use Shift + Alt + D (default) instead for a more thorough search."
 
 	Return, Title
 }
