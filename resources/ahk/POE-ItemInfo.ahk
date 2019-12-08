@@ -333,6 +333,7 @@ class Item_ {
 		This.MapLevel		:= ""
 		This.MapTier		:= ""
 		This.MaxSockets	:= ""
+		This.MaxSocketsNormal := ""
 		This.Sockets		:= ""
 		This.AbyssalSockets	:= ""
 		This.SocketGroups	:= []
@@ -7886,7 +7887,7 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 	}
 	ItemData.PartsLast := ItemDataPartsLast
 	ItemData.IndexLast := ItemDataIndexLast
-	
+
 	; ItemData.Requirements := GetItemDataChunk(ItemDataText, "Requirements:")
 	; ParseRequirements(ItemData.Requirements, RequiredLevel, RequiredAttributes, RequiredAttributeValues)
 
@@ -8071,7 +8072,7 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 	TempStr := ItemData.PartsLast
 	Loop, Parse, TempStr, `n, `r
 	{
-		RegExMatch(Trim(A_LoopField), "i)^Has ", match)
+		RegExMatch(Trim(A_LoopField), "^Has .*(Effect|Skin\.)", match)
 		If (match) {
 			Item.HasEffect := True
 		}
@@ -8305,6 +8306,8 @@ ParseItemData(ItemDataText, ByRef RarityLevel="")
 			TT := TT . "`n"
 			TT := TT . "Sockets:        " . Item.SocketString
 		}
+		
+		Item.MaxSocketsNormal := Item.MaxSockets - Item.AbyssalSockets	; poe.trade doesn't count abyssal sockets as "normal sockets"
 	}
 	
 	If (Item.IsWeapon)
@@ -8599,7 +8602,7 @@ GetNegativeAffixOffset(Item)
 	If (RegExMatch(Item.Name, "i)Tabula Rasa")) ; no mods, no flavour text
 	{
 		NegativeAffixOffset -= 2
-	}
+	}	
 	return NegativeAffixOffset
 }
 

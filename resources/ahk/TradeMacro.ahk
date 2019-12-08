@@ -642,12 +642,13 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 			Item.UsedInSearch.iLvl.max := 34
 		}
 
-		; set links to max for corrupted items with 3/4 max sockets if the own item is fully linked
+		; set links to max for corrupted items with 3/4 max sockets if the own item is fully linked		
+		; poe.trade doesn't count abyssal sockets as "normal sockets"
 		If (Item.IsCorrupted and TradeOpts.ForceMaxLinks) {
-			If (Item.MaxSockets = 4 and ItemData.Links = 4) {
+			If (Item.MaxSocketsNormal = 4 and ItemData.Links = 4) {
 				RequestParams.link_min := 4
 			}
-			Else If (Item.MaxSockets = 3 and ItemData.Links = 3) {
+			Else If (Item.MaxSocketsNormal = 3 and ItemData.Links = 3) {
 				RequestParams.link_min := 3
 			}
 		}
@@ -744,16 +745,16 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 
 		; handle item sockets
 		If (s.UseSockets) {
-			RequestParams.sockets_min := ItemData.Sockets
-			Item.UsedInSearch.Sockets := ItemData.Sockets
+			RequestParams.sockets_min := ItemData.Sockets - Item.AbyssalSockets
+			Item.UsedInSearch.Sockets := ItemData.Sockets - Item.AbyssalSockets
 		}
 		If (s.UseSocketsMaxFour) {
-			RequestParams.sockets_min := 4
-			Item.UsedInSearch.Sockets := 4
+			RequestParams.sockets_min := 4 - Item.AbyssalSockets
+			Item.UsedInSearch.Sockets := 4 - Item.AbyssalSockets
 		}
 		If (s.UseSocketsMaxThree) {
-			RequestParams.sockets_min := 3
-			Item.UsedInSearch.Sockets := 3
+			RequestParams.sockets_min := 3 - Item.AbyssalSockets
+			Item.UsedInSearch.Sockets := 3 - Item.AbyssalSockets
 		}
 
 		; handle item links
@@ -762,12 +763,12 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 			Item.UsedInSearch.Links	:= ItemData.Links
 		}
 		If (s.UseLinksMaxFour) {
-			RequestParams.link_min	:= 4
-			Item.UsedInSearch.Links	:= 4
+			RequestParams.link_min	:= 4 - Item.AbyssalSockets
+			Item.UsedInSearch.Links	:= 4 - Item.AbyssalSockets
 		}
 		If (s.UseLinksMaxThree) {
-			RequestParams.link_min	:= 3
-			Item.UsedInSearch.Links	:= 3
+			RequestParams.link_min	:= 3 - Item.AbyssalSockets
+			Item.UsedInSearch.Links	:= 3 - Item.AbyssalSockets
 		}
 
 		If (s.UsedInSearch) {
@@ -964,7 +965,7 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 				RequestParams.Shaper := 1
 				Item.UsedInSearch.specialBase := "Shaper"
 			}
-			Else {		
+			Else {
 				RequestParams.Shaper := 0
 			}
 			
@@ -5075,6 +5076,7 @@ TradeFunc_AdvancedPriceCheckGui(advItem, Stats, Sockets, Links, UniqueStats = ""
 		Gui, SelectModsGui:Add, Edit, x+0 yp+0 w0 vTradeAdvancedAbyssalSockets, % abyssalSockets
 	}	
 	
+	Sockets := Sockets - abyssalSockets
 	If (Sockets >= 5) {
 		m++
 		text := "Sockets: " . Trim(Sockets)
@@ -5086,12 +5088,12 @@ TradeFunc_AdvancedPriceCheckGui(advItem, Stats, Sockets, Links, UniqueStats = ""
 	}
 	Else If (Sockets <= 4 and advItem.maxSockets = 4) {
 		m++
-		text := "Sockets (max): 4"
+		text := "Sockets (max): " 4 - abyssalSockets
 		Gui, SelectModsGui:Add, CheckBox, x15 y+10 vTradeAdvancedUseSocketsMaxFour, % text
 	}
 	Else If (Sockets <= 3 and advItem.maxSockets = 3) {
 		m++
-		text := "Sockets (max): 3"
+		text := "Sockets (max): " 3 - abyssalSockets
 		Gui, SelectModsGui:Add, CheckBox, x15 y+10 vTradeAdvancedUseSocketsMaxThree, % text
 	}
 
@@ -5104,13 +5106,13 @@ TradeFunc_AdvancedPriceCheckGui(advItem, Stats, Sockets, Links, UniqueStats = ""
 	Else If (Links <= 4 and advItem.maxSockets = 4) {
 		offset := (m > 1 ) ? "+10" : "15"
 		m++
-		text := "Links (max): 4"
+		text := "Links (max): " advItem.maxSockets - abyssalSockets
 		Gui, SelectModsGui:Add, CheckBox, x%offset% yp+0 vTradeAdvancedUseLinksMaxFour, % text
 	}
 	Else If (Links <= 3 and advItem.maxSockets = 3) {
 		offset := (m > 1 ) ? "+10" : "15"
 		m++
-		text := "Links (max): 3"
+		text := "Links (max): " advItem.maxSockets - abyssalSockets
 		Gui, SelectModsGui:Add, CheckBox, x%offset% yp+0 vTradeAdvancedUseLinksMaxThree, % text
 	}
 
