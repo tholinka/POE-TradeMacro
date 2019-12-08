@@ -713,7 +713,7 @@ ParseItemType(ItemDataStats, ItemDataNamePlate, ByRef BaseType, ByRef SubType, B
 	; Check stats section first as weapons usually have their sub type as first line
 	Loop, Parse, ItemDataStats, `n, `r
 	{
-		If (RegExMatch(A_LoopField, "i)\b((One Handed|Two Handed) (Axe|Sword|Mace)|Sceptre|Warstaff|Staff|Dagger|Claw|Bow|Wand)\b", match))
+		If (RegExMatch(A_LoopField, "i)\b((One Handed|Two Handed) (Axe|Sword|Mace)|Sceptre|Warstaff|Staff|Rune Dagger|Dagger|Claw|Bow|Wand|Fishing Rod)\b", match))
 		{
 			BaseType	:= "Weapon"
 			If (RegExMatch(match1, "i)(Sword|Axe|Mace)", subMatch)) {
@@ -11288,7 +11288,7 @@ OpenWebPageWith(application, url) {
 	Return
 }
 
-LookUpAffixes() {
+LookUpAffixes_old() {
 	/*
 		Opens item base on poeaffix.net
 	*/
@@ -11341,6 +11341,113 @@ LookUpAffixes() {
 
 				url		.= prefix "-" suffix ".html"
 			}
+			openWith := AssociatedProgram("html")
+			OpenWebPageWith(openWith, Url)
+		}
+
+		Sleep, 10
+		If (!dontRestoreClipboard) {
+			Clipboard := ClipBoardTemp
+		}
+		SuspendPOEItemScript = 0 ; Allow Item info to handle clipboard change event
+	}
+}
+
+LookUpAffixes() {
+	/*
+		Opens item base on poeaffix.net
+	*/
+	IfWinActive, ahk_group PoEWindowGrp
+	{
+		Global Item, Opts, Globals, ItemData
+
+		ClipBoardTemp := ClipboardAll
+		SuspendPOEItemScript = 1 ; This allows us to handle the clipboard change event
+
+		Clipboard :=
+		scancode_c := Globals.Get("Scancodes").c
+		Send ^{%scancode_c%}	; ^{c}
+		Sleep 100
+
+		CBContents := GetClipboardContents()
+		CBContents := PreProcessContents(CBContents)
+		Globals.Set("ItemText", CBContents)
+		ParsedData := ParseItemData(CBContents)
+		If (Item.Name) {
+			dontRestoreClipboard := true
+		}
+		
+		If (Item.Name) {
+			url := "https://poedb.tw/us/mod.php"
+
+			ev		:= RegExMatch(ItemData.Stats, "i)Evasion Rating") ? true : false
+			ar		:= RegExMatch(ItemData.Stats, "i)Armour") ? true : false
+			es		:= RegExMatch(ItemData.Stats, "i)Energy Shield") ? true : false
+			RegExMatch(Item.SubType, "i)Axe|Sword|Mace|Sceptre|Bow|Wand|Claw|Wand|Rune Dagger|Dagger|Fishing Rod|Warstaff|Staff", weapon)
+			RegExMatch(Item.Subtype, "i)Amulet|Ring|Belt|Quiver|Flask", accessory)
+			RegExMatch(Item.Subtype, "i)Cobalt|Viridian|Crimson|Prismatic|Murderous Eye|Searching Eye|Ghastly Eye|Hypnotic Eye|Timeless", jewel)
+
+			boots	:= RegExMatch(Item.Subtype, "i)Boots") ? "?cn=Boots" : ""
+			chest 	:= RegExMatch(Item.Subtype, "i)BodyArmour") ? "?cn=Body+Armour" : ""
+			gloves 	:= RegExMatch(Item.Subtype, "i)Gloves") ? "?cn=Gloves" : ""
+			helmet 	:= RegExMatch(Item.Subtype, "i)Helmet") ? "?cn=Helmet" : ""
+			shield 	:= RegExMatch(Item.Subtype, "i)Shield") ? "?cn=Shield" : ""
+			debugprintarray([item, weapon])
+			If (StrLen(weapon)) {
+				If (RegExMatch(weapon, "i)Axe|Sword|Mace")) {
+					gripType 	:= Item.GripType == "1H" ? "One%20Hand%20" : "Two%20Hand%20"
+				}					
+				If (weapon = "Fishing Rod") {
+					weapon := "FishingRod"
+				}
+				weapon := RegExReplace(weapon, "i)\s", "%20")
+
+				url		.= "?cn=" gripType . weapon
+			} 
+			Else If (Item.BaseType == "Armour") {
+				url		.= boots . chest . gloves . helmet . shield					
+				If (ar and ev and es) {
+					url	.= "&an=str_dex_int_armour"
+				} Else If (ar and ev) {
+					url	.= "&an=str_dex_armour"
+					url	.= StrLen(shield) ? ",str_dex_shield" : ""
+				} Else If (ar and es) {
+					url	.= "&an=str_int_armour"
+					url	.= StrLen(shield) ? ",str_int_shield" : "" 
+				} Else If (ev and es) {
+					url	.= "&an=dex_int_armour"
+					url	.= StrLen(shield) ? ",dex_int_shield" : ""
+				} Else If (ar) {
+					url	.= "&an=str_armour"
+					url	.= StrLen(shield) ? ",str_shield" : ""
+				} Else If (ev) {
+					url	.= "&an=dex_armour"
+					url	.= StrLen(shield) ? ",dex_shield" : ""
+				} Else If (es) {
+					url	.= "&an=int_armour"
+					url	.= StrLen(shield) ? ",int_shield" : ""
+				}
+			}
+			Else If (StrLen(accessory)) {
+				If (accessory = "ring") {
+					url	.= "?cn=" accessory "&an=unset_ring"
+				} Else If (RegExMatch(accessory, "i)Life Flask")) {
+					url	.= "?cn=LifeFlask"
+				} Else If (RegExMatch(accessory, "i)Mana Flask")) {
+					url	.= "?cn=ManFlask"
+				} Else If (RegExMatch(accessory, "i)Diamond Flask")) {
+					url	.= "?cn=CriticalUtilityFlask"
+				} Else If (RegExMatch(accessory, "i)Flask")) {
+					url	.= "?cn=UtilityFlask"
+				} Else {
+					url	.= "?cn=" accessory
+				}
+			}
+			Else If (StrLen(jewel)) {
+				url	.= "?cn=BaseItemTypes"
+				url	.= "&an=" RegExReplace(jewel, "i)\s", "+") "Jewel"
+			}
+
 			openWith := AssociatedProgram("html")
 			OpenWebPageWith(openWith, Url)
 		}
