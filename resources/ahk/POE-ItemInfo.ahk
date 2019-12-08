@@ -11916,9 +11916,9 @@ CheckForUpdates:
 
 	hasUpdate := PoEScripts_Update(globalUpdateInfo.user, globalUpdateInfo.repo, globalUpdateInfo.releaseVersion, globalUpdateInfo.skipUpdateCheck, userDirectory, isDevVersion, globalUpdateInfo.skipSelection, globalUpdateInfo.skipBackup)
 	If (hasUpdate = "no update" and not firstUpdateCheck) {
-		SplashUI.SetSubMessage("No update available")
-		Sleep 2000
-		SplashUI.DestroyUI()
+		_repo := globalUpdateInfo.repo
+		_version := globalUpdateInfo.releaseVersion
+		TrayTip, %_repo%, No updates available.`nVersion: %_version%
 	}
 	return
 
