@@ -718,6 +718,11 @@ ParseItemType(ItemDataStats, ItemDataNamePlate, ByRef BaseType, ByRef SubType, B
 			If (RegExMatch(match1, "i)(Sword|Axe|Mace)", subMatch)) {
 				SubType	:= subMatch1
 			} Else {
+				/* workaround - poe.trade doesn't know warstaves 
+				*/
+				If (match1 = "Warstaff") {
+					match1 := "Staff"
+				}
 				SubType	:= match1
 			}
 			GripType	:= (RegExMatch(match1, "i)\b(Two Handed|Warstaff|Staff|Bow)\b")) ? "2H" : "1H"
