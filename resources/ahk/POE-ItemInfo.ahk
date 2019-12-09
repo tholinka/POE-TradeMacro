@@ -719,11 +719,6 @@ ParseItemType(ItemDataStats, ItemDataNamePlate, ByRef BaseType, ByRef SubType, B
 			If (RegExMatch(match1, "i)(Sword|Axe|Mace)", subMatch)) {
 				SubType	:= subMatch1
 			} Else {
-				/* workaround - poe.trade doesn't know warstaves 
-				*/
-				If (match1 = "Warstaff") {
-					match1 := "Staff"
-				}
 				SubType	:= match1
 			}
 			GripType	:= (RegExMatch(match1, "i)\b(Two Handed|Warstaff|Staff|Bow)\b")) ? "2H" : "1H"
@@ -11392,7 +11387,7 @@ LookUpAffixes() {
 			gloves 	:= RegExMatch(Item.Subtype, "i)Gloves") ? "?cn=Gloves" : ""
 			helmet 	:= RegExMatch(Item.Subtype, "i)Helmet") ? "?cn=Helmet" : ""
 			shield 	:= RegExMatch(Item.Subtype, "i)Shield") ? "?cn=Shield" : ""
-			debugprintarray([item, weapon])
+
 			If (StrLen(weapon)) {
 				If (RegExMatch(weapon, "i)Axe|Sword|Mace")) {
 					gripType 	:= Item.GripType == "1H" ? "One%20Hand%20" : "Two%20Hand%20"

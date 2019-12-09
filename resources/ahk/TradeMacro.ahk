@@ -876,6 +876,16 @@ TradeFunc_Main(openSearchInBrowser = false, isAdvancedPriceCheck = false, isAdva
 			Item.xtype := "Two Hand " . Item.SubType
 		}
 	}
+	/*
+		"workaround" for poe.trade missing the warstaff/rune dagger item types
+		todo: remove when types are available
+	*/
+	If (RegExMatch(Item.SubType, "i)Warstaff")) {
+		Item.xtype := "Staff"
+	}
+	If (RegExMatch(Item.SubType, "i)Rune Dagger")) {
+		Item.xtype := "Dagger"
+	}
 
 	/*
 		Fix Body Armour subtype
